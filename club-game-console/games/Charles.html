@@ -1,0 +1,208 @@
+<!--
+GAME_META
+title: 打砖块
+author: dev
+description: 控制挡板反弹小球，击碎全部砖块获胜，小球掉落则失败
+controls: 鼠标拖动 / 左右方向键，手机可滑动
+tags: 休闲, 打砖块, 反弹
+emoji: 🧱
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>打砖块</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
+body{background:#1a1a2e;color:#fff;padding:12px;text-align:center}
+#container{max-width:600px;margin:0 auto}
+h1{font-size:24px;margin-bottom:8px}
+.desc{font-size:14px;color:#ccc;margin-bottom:10px}
+.info{display:flex;justify-content:space-between;margin-bottom:8px;font-size:16px}
+#gameCanvas{border:2px solid #444;background:#000;border-radius:6px;width:100%;touch-action:none}
+.btns{margin-top:10px}
+button{padding:8px 16px;font-size:15px;border:none;border-radius:6px;background:#4361ee;color:#fff;cursor:pointer;margin:0 4px}
+button:hover{background:#3a56d4}
+#msg{font-size:18px;margin:8px 0;height:24px;color:#ffd166}
+</style>
+</head>
+<body>
+<div id="container">
+  <h1>🧱 打砖块</h1>
+  <div class="desc">控制挡板反弹小球，击碎全部砖块获胜，小球掉落则失败</div>
+  <div class="info">
+    <div>分数: <span id="score">0</span></div>
+    <div>剩余砖块: <span id="brickCount">0</span></div>
+  </div>
+  <div id="msg">准备就绪，点开始！</div>
+  <canvas id="gameCanvas"></canvas>
+  <div class="btns">
+    <button id="startBtn">开始游戏</button>
+    <button id="resetBtn">重新开始</button>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+// Keep game coordinates stable; CSS scales the board on small screens.
+canvas.width=580;
+canvas.height=406;
+
+let gameOn=false;
+let animationId=null;
+let score=0;
+let brickTotal=0;
+const scoreEl=document.getElementById('score');
+const brickEl=document.getElementById('brickCount');
+const msgEl=document.getElementById('msg');
+const startBtn=document.getElementById('startBtn');
+const resetBtn=document.getElementById('resetBtn');
+
+const INIT_SPEED=7;
+const SPEED_STEP=0.4;
+const MAX_SPEED=14;
+
+const ball={x:0,y:0,r:6,dx:INIT_SPEED,dy:-INIT_SPEED,speed:INIT_SPEED};
+const paddle={x:0,y:0,w:70,h:12};
+let bricks=[];
+const brickW=48,brickH=18,brickRows=4,brickCols=10;
+
+function initBricks(){
+  bricks=[];
+  const ox=(canvas.width - brickCols*brickW)/2;
+  for(let r=0;r<brickRows;r++){
+    for(let c=0;c<brickCols;c++){
+      bricks.push({
+        x:ox+c*brickW,
+        y:30+r*(brickH+6),
+        w:brickW,
+        h:brickH,
+        alive:true
+      })
+    }
+  }
+  brickTotal=bricks.length;
+}
+function resetGame(){
+  cancelAnimationFrame(animationId);
+  animationId=null;
+  gameOn=false;
+  score=0;
+  initBricks();
+  paddle.x=(canvas.width-paddle.w)/2;
+  paddle.y=canvas.height-30;
+  ball.x=paddle.x+paddle.w/2;
+  ball.y=paddle.y-ball.r-2;
+  ball.speed=INIT_SPEED;
+  const ang=-Math.PI/4-Math.random()*Math.PI/2;
+  ball.dx=Math.cos(ang)*ball.speed;
+  ball.dy=Math.sin(ang)*ball.speed;
+  msgEl.textContent='准备就绪，点开始！';
+  updateUI();
+  draw();
+}
+function updateUI(){
+  scoreEl.textContent=score;
+  brickEl.textContent=bricks.filter(b=>b.alive).length;
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#06d6a0';
+  ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fillStyle='#ef476f';
+  ctx.fill();
+  for(const b of bricks){
+    if(!b.alive) continue;
+    ctx.fillStyle='#118ab2';
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    ctx.strokeStyle='#fff';
+    ctx.strokeRect(b.x,b.y,b.w,b.h);
+  }
+}
+function loop(){
+  if(!gameOn) return;
+  ball.x+=ball.dx;
+  ball.y+=ball.dy;
+  if(ball.x-ball.r<0){ball.x=ball.r;ball.dx*=-1;}
+  if(ball.x+ball.r>canvas.width){ball.x=canvas.width-ball.r;ball.dx*=-1;}
+  if(ball.y-ball.r<0){ball.y=ball.r;ball.dy*=-1;}
+  if(ball.y+ball.r>canvas.height){
+    gameOn=false;
+    msgEl.textContent='游戏结束！小球掉下去了';
+    draw();
+    return;
+  }
+  if(ball.dy>0 && ball.y+ball.r >= paddle.y
+    && ball.y-ball.r <= paddle.y+paddle.h
+    && ball.x>paddle.x
+    && ball.x<paddle.x+paddle.w){
+    ball.y=paddle.y-ball.r;
+    const hit=(ball.x-(paddle.x+paddle.w/2))/(paddle.w/2);
+    const ang=hit*(Math.PI/3);
+    ball.dx=Math.sin(ang)*ball.speed;
+    ball.dy=-Math.abs(Math.cos(ang)*ball.speed);
+  }
+  for(const b of bricks){
+    if(!b.alive) continue;
+    if(ball.x+ball.r>b.x && ball.x-ball.r<b.x+b.w
+      && ball.y+ball.r>b.y && ball.y-ball.r<b.y+b.h){
+      b.alive=false;
+      score+=10;
+      const prev=ball.speed;
+      ball.speed=Math.min(MAX_SPEED,ball.speed+SPEED_STEP);
+      const k=ball.speed/prev;
+      ball.dx*=k;
+      ball.dy*=k;
+      const cx=ball.x,cy=ball.y;
+      if(cx<b.x+b.w/2) ball.dx=-Math.abs(ball.dx);
+      else ball.dx=Math.abs(ball.dx);
+      if(cy<b.y+b.h/2) ball.dy=-Math.abs(ball.dy);
+      else ball.dy=Math.abs(ball.dy);
+      updateUI();
+      if(bricks.every(x=>!x.alive)){
+        gameOn=false;
+        msgEl.textContent='🎉 恭喜通关！';
+      }
+      break;
+    }
+  }
+  draw();
+  if(gameOn) animationId=requestAnimationFrame(loop);
+}
+function start(){
+  if(gameOn) return;
+  if(ball.y+ball.r>canvas.height || bricks.every(b=>!b.alive)) resetGame();
+  gameOn=true;
+  msgEl.textContent='游戏进行中';
+  loop();
+}
+startBtn.onclick=start;
+resetBtn.onclick=resetGame;
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft' || e.key==='ArrowRight') e.preventDefault();
+  if(!gameOn) return;
+  const spd=16;
+  if(e.key==='ArrowLeft') paddle.x=Math.max(0,paddle.x-spd);
+  if(e.key==='ArrowRight') paddle.x=Math.min(canvas.width-paddle.w,paddle.x+spd);
+})
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left-canvas.clientLeft)*canvas.width/canvas.clientWidth;
+  paddle.x=Math.min(canvas.width-paddle.w, Math.max(0, mx-paddle.w/2));
+})
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const t=e.touches[0];
+  const mx=(t.clientX-rect.left-canvas.clientLeft)*canvas.width/canvas.clientWidth;
+  paddle.x=Math.min(canvas.width-paddle.w, Math.max(0, mx-paddle.w/2));
+},{passive:false})
+resetGame();
+draw();
+</script>
+</body>
+</html>

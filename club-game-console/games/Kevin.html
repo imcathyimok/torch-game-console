@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<!--
+GAME_META
+title: 霓虹跑酷
+author: 前端工程师
+description: 在霓虹夜色中奔跑，跳过红色障碍、滑过悬空方块，躲避无人机子弹，收集青色宝石拿高分。
+controls: 空格/↑/W 跳跃（可二段跳），↓/S 滑铲；手机可点屏幕跳跃、按住「滑」按钮滑铲
+tags: 跑酷, 休闲, 无尽, 霓虹, 敌人
+emoji: 🏃
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>霓虹跑酷</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh;
+    background:radial-gradient(circle at 50% 0%,#1b2450 0%,#080b18 65%);
+    color:#e8f0ff;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    padding:12px;overflow-x:hidden;
+  }
+  .wrap{width:100%;max-width:880px}
+  .head{text-align:center;margin-bottom:10px}
+  .head h1{margin:0 0 4px;font-size:clamp(18px,4.5vw,26px);letter-spacing:1px}
+  .head p{margin:0;font-size:clamp(11px,3vw,13px);color:#8fa4cc;line-height:1.5}
+  .stage{
+    position:relative;border-radius:16px;overflow:hidden;background:#0a0e27;
+    box-shadow:0 12px 44px rgba(0,0,0,.65),0 0 0 1px rgba(90,160,255,.25) inset;
+  }
+  canvas{display:block;width:100%;touch-action:none;user-select:none}
+  .hud{
+    position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;
+    font-size:clamp(11px,2.6vw,13px);color:#a9c2e8;pointer-events:none;
+    text-shadow:0 2px 8px #000;letter-spacing:.5px;
+  }
+  .hud b{color:#7cf5ff;font-size:1.15em}
+  .overlay{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(6,10,25,.8);opacity:0;pointer-events:none;
+    transition:opacity .22s ease;padding:14px;
+  }
+  .overlay.show{opacity:1;pointer-events:auto}
+  .card{text-align:center;max-width:360px}
+  .card h2{margin:0 0 8px;font-size:clamp(17px,4.6vw,22px)}
+  .card p{margin:0 0 14px;font-size:clamp(11px,3vw,13px);color:#9db4dc;line-height:1.7}
+  .card b{color:#7cf5ff}
+  button{
+    font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 24px;
+    color:#04121f;background:linear-gradient(180deg,#8ef7ff,#38b6ff);font-weight:700;
+    font-size:clamp(12px,3.2vw,15px);box-shadow:0 6px 18px rgba(56,182,255,.35);
+    transition:transform .12s ease;
+  }
+  button:active{transform:scale(.95)}
+  .touch{
+    position:absolute;left:0;right:0;bottom:0;display:none;gap:10px;padding:10px;
+    justify-content:space-between;pointer-events:none;
+  }
+  .touch.show{display:flex}
+  .touch button{
+    pointer-events:auto;flex:1;padding:14px 0;font-size:14px;
+    background:rgba(140,220,255,.14);color:#bfe9ff;
+    border:1px solid rgba(140,220,255,.35);box-shadow:none;font-weight:600;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>🏃 霓虹跑酷</h1>
+    <p>空格 / ↑ 跳跃（可二段跳），↓ 滑铲 · 躲开红色障碍与无人机子弹，收集青色宝石</p>
+  </div>
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div>分数 <b id="score">0</b></div>
+      <div>最高 <b id="best">0</b></div>
+    </div>
+    <div class="touch" id="touch">
+      <button id="btnJump" type="button">⬆️ 跳</button>
+      <button id="btnSlide" type="button">⬇️ 滑</button>
+    </div>
+    <div class="overlay show" id="overlay">
+      <div class="card">
+        <h2 id="ovTitle">准备开始</h2>
+        <p id="ovText">跳过红色方块，滑过悬空障碍，小心无人机的子弹！</p>
+        <button id="btnStart" type="button">开始游戏</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var canvas = document.getElementById('cv');
+  var ctx = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+  var overlay = document.getElementById('overlay');
+  var ovTitle = document.getElementById('ovTitle');
+  var ovText = document.getElementById('ovText');
+  var btnStart = document.getElementById('btnStart');
+  var scoreEl = document.getElementById('score');
+  var bestEl = document.getElementById('best');
+  var touchPad = document.getElementById('touch');
+  var btnJump = document.getElementById('btnJump');
+  var btnSlide = document.getElementById('btnSlide');
+
+  var W = 800, H = 400, DPR = 1, s = 1, groundY = 336, playerX = 130;
+
+  var player = { y: 336, vy: 0, onGround: true, jumps: 0, sliding: false };
+
+  var obstacles = [], gems = [], buildings = [], stars = [], enemies = [], bullets = [];
+  var state = 'ready';
+  var speed = 380, dist = 0, gemCount = 0, score = 0, best = 0;
+  var spawnTimer = 1, enemyTimer = 5, bgOffset = 0, lastT = 0;
+  var slideKey = false, slideTouch = false;
+  var lastScore = -1, lastBest = -1;
+
+  try { best = parseInt(localStorage.getItem('neonrun_best') || '0', 10) || 0; } catch (e) { best = 0; }
+
+  /* ---------- 音频 ---------- */
+  var actx = null;
+  function ensureAudio() {
+    try {
+      if (actx) { if (actx.state === 'suspended') actx.resume().catch(function(){}); return; }
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) actx = new AC();
+    } catch (e) { actx = null; }
+  }
+  function playTone(freq, dur, type, vol, slideTo) {
+    if (!actx) return;
+    try {
+      var t = actx.currentTime;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slideTo), t + dur);
+      g.gain.setValueAtTime(vol || 0.05, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) {}
+  }
+
+  /* ---------- 工具 ---------- */
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+  function isSliding() { return slideKey || slideTouch; }
+
+  /* ---------- 尺寸 ---------- */
+  function initStars() {
+    stars = [];
+    var n = Math.max(20, Math.round(W / 14));
+    for (var i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random(),
+        y: Math.random() * 0.66,
+        r: Math.random() < 0.78 ? Math.max(1, 1.2 * s) : Math.max(1.5, 2.2 * s),
+        a: 0.25 + Math.random() * 0.7
+      });
+    }
+  }
+
+  function makeWindows(b) {
+    b.win = [];
+    var step = 12 * s;
+    for (var x = 5 * s; x < b.w - 5 * s; x += step) {
+      for (var y = 6 * s; y < b.h - 8 * s; y += step) {
+        if (Math.random() < 0.45) b.win.push({ x: x, y: y });
+      }
+    }
+  }
+
+  function initBuildings() {
+    buildings = [];
+    var x = -60, limit = W + 420;
+    var guard = 0;
+    while (x < limit && guard++ < 200) {
+      var b = {
+        x: x,
+        w: (34 + Math.random() * 70) * s,
+        h: (40 + Math.random() * 110) * s
+      };
+      makeWindows(b);
+      buildings.push(b);
+      x += b.w + (16 + Math.random() * 46) * s;
+    }
+  }
+
+  function resize() {
+    var r = stage.getBoundingClientRect();
+    W = Math.max(280, Math.floor(r.width) || 800);
+    H = Math.round(Math.min(440, Math.max(200, W * 0.5)));
+    canvas.style.height = H + 'px';
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    s = H / 400;
+    groundY = H - 62 * s;
+    playerX = Math.max(48, W * 0.16);
+    if (player.y > groundY) player.y = groundY;
+    initStars();
+    initBuildings();
+    if (obstacles.length) obstacles = obstacles.filter(function (o) { return o.x < W + 200; });
+  }
+
+  /* ---------- 游戏状态 ---------- */
+  function updateHUD() {
+    if (score !== lastScore) { scoreEl.textContent = score; lastScore = score; }
+    if (best !== lastBest) { bestEl.textContent = best; lastBest = best; }
+  }
+
+  function reset() {
+    obstacles.length = 0;
+    gems.length = 0;
+    enemies.length = 0;
+    bullets.length = 0;
+    speed = 380 * s;
+    dist = 0;
+    gemCount = 0;
+    score = 0;
+    spawnTimer = 0.9;
+    enemyTimer = 5;
+    bgOffset = 0;
+    slideKey = false;
+    slideTouch = false;
+    player.y = groundY;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumps = 0;
+    player.sliding = false;
+    lastScore = -1;
+    lastBest = -1;
+    updateHUD();
+  }
+
+  function startGame() {
+    ensureAudio();
+    reset();
+    state = 'playing';
+    overlay.classList.remove('show');
+  }
+
+  function gameOver() {
+    if (state !== 'playing') return;
+    state = 'over';
+    playTone(200, 0.35, 'sawtooth', 0.07, -140);
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('neonrun_best', String(best)); } catch (e) {}
+    }
+    updateHUD();
+    ovTitle.textContent = '💥 撞上啦！';
+    ovText.innerHTML = '本局得分 <b>' + score + '</b> ｜ 最高分 <b>' + best + '</b>';
+    btnStart.textContent = '再来一局';
+    overlay.classList.add('show');
+  }
+
+  function jump() {
+    if (state !== 'playing') return;
+    if (player.jumps >= 2) return;
+    player.jumps++;
+    player.vy = -860 * s * (player.jumps === 1 ? 1 : 0.88);
+    player.onGround = false;
+    playTone(player.jumps === 1 ? 470 : 640, 0.1, 'square', 0.045, 220);
+  }
+
+  /* ---------- 生成 ---------- */
+  function spawnObstacle() {
+    var x = W + 40 * s;
+    var r = Math.random();
+    if (r < 0.42) {
+      var h1 = (28 + Math.random() * 26) * s;
+      var w1 = (26 + Math.random() * 16) * s;
+      obstacles.push({ x: x, w: w1, h: h1, y: groundY - h1 });
+      if (Math.random() < 0.35) {
+        gems.push({ x: x + w1 / 2, y: groundY - (108 + Math.random() * 62) * s, rot: 0 });
+      }
+    } else if (r < 0.68) {
+      var h2 = (44 + Math.random() * 18) * s;
+      var w2 = (46 + Math.random() * 30) * s;
+      obstacles.push({ x: x, w: w2, h: h2, y: groundY - h2 });
+      if (Math.random() < 0.3) {
+        gems.push({ x: x + w2 / 2, y: groundY - (118 + Math.random() * 55) * s, rot: 0 });
+      }
+    } else if (r < 0.92) {
+      var w3 = (38 + Math.random() * 24) * s;
+      var h3 = (72 + Math.random() * 20) * s;
+      var bottom = groundY - 32 * s;
+      obstacles.push({ x: x, w: w3, h: h3, y: bottom - h3 });
+    } else {
+      /* 双重障碍：一低一高，必须二段跳或者滑铲 */
+      var wl = 24 * s, hl = (26 + Math.random() * 12) * s;
+      obstacles.push({ x: x, w: wl, h: hl, y: groundY - hl });
+      var wh = 26 * s, hh = 34 * s;
+      obstacles.push({ x: x + 74 * s, w: wh, h: hh, y: groundY - hh });
+    }
+  }
+
+  function spawnEnemy() {
+    var yTop = groundY - 112 * s;
+    var yBot = groundY - 22 * s;
+    var y = yTop + Math.random() * (yBot - yTop);
+    enemies.push({
+      x: W + 70 * s,
+      y: y,
+      vx: speed * 0.55 + 70 * s,
+      fireT: 0.55 + Math.random() * 0.5,
+      t: 0
+    });
+  }
+
+  /* ---------- 碰撞 ---------- */
+  function playerBox() {
+    var w = (player.sliding ? 40 : 30) * s;
+    var h = (player.sliding ? 24 : 46) * s;
+    return { x: playerX - w / 2, y: player.y - h, w: w, h: h };
+  }
+
+  function hitsObstacle(o) {
+    var p = playerBox();
+    var pad = 4 * s;
+    return (p.x < o.x + o.w - pad) && (p.x + p.w > o.x + pad) &&
+           (p.y < o.y + o.h - pad) && (p.y + p.h > o.y + pad);
+  }
+
+  function bulletHitsPlayer(b) {
+    var p = playerBox();
+    var cx = Math.max(p.x, Math.min(b.x, p.x + p.w));
+    var cy = Math.max(p.y, Math.min(b.y, p.y + p.h));
+    var dx = b.x - cx, dy = b.y - cy;
+    return dx * dx + dy * dy < b.r * b.r;
+  }
+
+  /* ---------- 更新 ---------- */
+  function updateBuildings(dt) {
+    var sp = (state === 'playing') ? speed * 0.2 : 26 * s;
+    var maxRight = 0, i, b;
+    for (i = 0; i < buildings.length; i++) {
+      b = buildings[i];
+      b.x -= sp * dt;
+      if (b.x + b.w > maxRight) maxRight = b.x + b.w;
+    }
+    for (i = 0; i < buildings.length; i++) {
+      b = buildings[i];
+      if (b.x + b.w < -70) {
+        b.x = maxRight + (16 + Math.random() * 46) * s;
+        b.w = (34 + Math.random() * 70) * s;
+        b.h = (40 + Math.random() * 110) * s;
+        makeWindows(b);
+        maxRight = b.x + b.w;
+      }
+    }
+  }
+
+  function updateEnemies(dt) {
+    var i, e, b;
+    for (i = enemies.length - 1; i >= 0; i--) {
+      e = enemies[i];
+      e.t += dt;
+      e.x -= e.vx * dt;
+      e.fireT -= dt;
+      if (e.fireT <= 0 && e.x < W + 30 * s && e.x > playerX + 30 * s) {
+        e.fireT = 0.8 + Math.random() * 0.4;
+        bullets.push({
+          x: e.x - 14 * s,
+          y: e.y,
+          vx: -(Math.max(560 * s, speed * 1.2)),
+          r: 7 * s,
+          life: 3.2
+        });
+        playTone(300, 0.07, 'sawtooth', 0.028, -120);
+      }
+      if (e.x < -90 * s) enemies.splice(i, 1);
+    }
+    for (i = bullets.length - 1; i >= 0; i--) {
+      b = bullets[i];
+      b.x += b.vx * dt;
+      b.life -= dt;
+      if (b.x < -40 * s || b.life <= 0) { bullets.splice(i, 1); continue; }
+      if (bulletHitsPlayer(b)) { gameOver(); return true; }
+    }
+    return false;
+  }
+
+  function update(dt) {
+    /* 速度越来越快 */
+    speed = Math.min(980 * s, speed + 15 * s * dt);
+    dist += speed * dt;
+    bgOffset += speed * dt;
+    score = Math.floor(dist / 10) + gemCount * 5;
+
+    /* 玩家物理 */
+    player.vy += 2600 * s * dt;
+    player.y += player.vy * dt;
+    if (player.y >= groundY) {
+      player.y = groundY;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumps = 0;
+    } else {
+      player.onGround = false;
+    }
+    player.sliding = isSliding() && player.onGround;
+
+    /* 障碍生成 */
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnObstacle();
+      var gapPx = (285 + Math.random() * 220) * s;
+      spawnTimer = Math.max(0.34, gapPx / speed);
+    }
+
+    /* 敌人生成 */
+    enemyTimer -= dt;
+    if (enemyTimer <= 0) {
+      spawnEnemy();
+      enemyTimer = 3.4 + Math.random() * 3.2;
+    }
+
+    /* 障碍移动 + 碰撞 */
+    var i, o;
+    for (i = obstacles.length - 1; i >= 0; i--) {
+      o = obstacles[i];
+      o.x -= speed * dt;
+      if (o.x + o.w < -30) { obstacles.splice(i, 1); continue; }
+      if (hitsObstacle(o)) { gameOver(); return; }
+    }
+
+    /* 敌人 / 子弹 */
+    if (updateEnemies(dt)) return;
+
+    /* 宝石 */
+    var pcx = playerX;
+    var pcy = player.y - (player.sliding ? 12 * s : 23 * s);
+    var rr = 26 * s * 26 * s;
+    for (i = gems.length - 1; i >= 0; i--) {
+      var g = gems[i];
+      g.x -= speed * dt;
+      g.rot += dt * 4;
+      if (g.x < -30) { gems.splice(i, 1); continue; }
+      var dx = g.x - pcx, dy = g.y - pcy;
+      if (dx * dx + dy * dy < rr) {
+        gems.splice(i, 1);
+        gemCount++;
+        playTone(880 + Math.random() * 220, 0.09, 'triangle', 0.05, 320);
+      }
+    }
+
+    updateHUD();
+  }
+
+  /* ---------- 绘制 ---------- */
+  function drawBg() {
+    var g = ctx.createLinearGradient(0, 0, 0, groundY);
+    g.addColorStop(0, '#0a1030');
+    g.addColorStop(0.55, '#151f48');
+    g.addColorStop(1, '#243066');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, groundY);
+
+    var i, st, x;
+    for (i = 0; i < stars.length; i++) {
+      st = stars[i];
+      x = (st.x * W - bgOffset * 0.05) % W;
+      if (x < 0) x += W;
+      ctx.globalAlpha = st.a * 0.85;
+      ctx.fillStyle = '#cfe6ff';
+      ctx.fillRect(x, st.y * groundY, st.r, st.r);
+    }
+    ctx.globalAlpha = 1;
+
+    var mx = W * 0.78, my = groundY * 0.24, mr = 46 * s;
+    var mg = ctx.createRadialGradient(mx, my, 1, mx, my, mr);
+    mg.addColorStop(0, 'rgba(200,230,255,0.95)');
+    mg.addColorStop(0.35, 'rgba(110,168,255,0.5)');
+    mg.addColorStop(1, 'rgba(110,168,255,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(70,110,200,0.3)';
+    for (i = 0; i < buildings.length; i++) {
+      var b = buildings[i];
+      ctx.fillRect(b.x, groundY - b.h, b.w, b.h);
+    }
+    ctx.fillStyle = 'rgba(140,220,255,0.45)';
+    var wsize = Math.max(1.5, 3 * s);
+    for (i = 0; i < buildings.length; i++) {
+      var bb = buildings[i];
+      for (var k = 0; k < bb.win.length; k++) {
+        ctx.fillRect(bb.x + bb.win[k].x, groundY - bb.h + bb.win[k].y, wsize, wsize);
+      }
+    }
+  }
+
+  function drawGround() {
+    var g = ctx.createLinearGradient(0, groundY, 0, H);
+    g.addColorStop(0, '#2b3a6b');
+    g.addColorStop(1, '#080c1e');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, groundY, W, H - groundY);
+
+    ctx.save();
+    ctx.strokeStyle = '#4fe3ff';
+    ctx.lineWidth = Math.max(1.5, 2 * s);
+    ctx.shadowColor = '#4fe3ff';
+    ctx.shadowBlur = 12 * s;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(W, groundY);
+    ctx.stroke();
+    ctx.restore();
+
+    var period = 60 * s;
+    var off = bgOffset % period;
+    ctx.fillStyle = 'rgba(120,200,255,0.22)';
+    for (var x = -off; x < W; x += period) {
+      ctx.fillRect(x, groundY + 10 * s, 26 * s, 3 * s);
+    }
+  }
+
+  function drawObs(o) {
+    ctx.save();
+    ctx.shadowColor = '#ff3b7f';
+    ctx.shadowBlur = 14 * s;
+    var g = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.h);
+    g.addColorStop(0, '#ff6b96');
+    g.addColorStop(1, '#a80f47');
+    ctx.fillStyle = g;
+    roundRect(o.x, o.y, o.w, o.h, 6 * s);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    roundRect(o.x + 4 * s, o.y + 4 * s, Math.max(2, o.w * 0.22), Math.max(3, o.h * 0.55), 3 * s);
+    ctx.fill();
+  }
+
+  function drawGem(g) {
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.rot);
+    ctx.shadowColor = '#5cffd0';
+    ctx.shadowBlur = 14 * s;
+    ctx.fillStyle = '#5cffd0';
+    var r = 9 * s;
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r, 0);
+    ctx.lineTo(0, r);
+    ctx.lineTo(-r, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEnemy(e) {
+    var r = 16 * s;
+    ctx.save();
+    ctx.shadowColor = '#ff4be0';
+    ctx.shadowBlur = 18 * s;
+    var g = ctx.createLinearGradient(e.x, e.y - r, e.x, e.y + r);
+    g.addColorStop(0, '#e07bff');
+    g.addColorStop(1, '#8a12c9');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(e.x - r, e.y);
+    ctx.lineTo(e.x - r * 0.5, e.y - r * 0.75);
+    ctx.lineTo(e.x + r * 0.5, e.y - r * 0.75);
+    ctx.lineTo(e.x + r, e.y);
+    ctx.lineTo(e.x + r * 0.5, e.y + r * 0.75);
+    ctx.lineTo(e.x - r * 0.5, e.y + r * 0.75);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.shadowColor = '#fff5a0';
+    ctx.shadowBlur = 10 * s;
+    ctx.fillStyle = '#ffe36e';
+    ctx.beginPath();
+    ctx.arc(e.x - 4 * s, e.y, 3.2 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(e.x + 5 * s, e.y, 3.2 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBullet(b) {
+    ctx.save();
+    ctx.shadowColor = '#ff5c33';
+    ctx.shadowBlur = 14 * s;
+    var g = ctx.createLinearGradient(b.x - 12 * s, b.y, b.x + 12 * s, b.y);
+    g.addColorStop(0, 'rgba(255,90,40,0.1)');
+    g.addColorStop(0.55, '#ff8a3d');
+    g.addColorStop(1, '#ffdd55');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(b.x, b.y, 11 * s, 4.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlayer() {
+    var p = player;
+    var w = (p.sliding ? 40 : 30) * s;
+    var h = (p.sliding ? 24 : 46) * s;
+    var x = playerX - w / 2;
+    var y = p.y - h;
+
+    ctx.save();
+    ctx.globalAlpha = 0.32 * Math.max(0.2, 1 - (groundY - p.y) / (170 * s));
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(playerX, groundY + 3 * s, w * 0.62, 4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    var bodyH = h * 0.74;
+    ctx.save();
+    ctx.shadowColor = '#38b6ff';
+    ctx.shadowBlur = 16 * s;
+    var bg = ctx.createLinearGradient(x, y, x + w, y + bodyH);
+    bg.addColorStop(0, '#9ff6ff');
+    bg.addColorStop(1, '#2b7bff');
+    ctx.fillStyle = bg;
+    roundRect(x, y, w, bodyH, Math.min(w, bodyH) * 0.34);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#061a33';
+    ctx.beginPath();
+    ctx.arc(x + w * 0.68, y + bodyH * 0.38, Math.max(1.6, 3 * s), 0, Math.PI * 2);
+    ctx.fill();
+
+    var legTop = y + bodyH;
+    var legLen = (y + h) - legTop;
+    ctx.strokeStyle = '#2b7bff';
+    ctx.lineWidth = Math.max(2, 4.5 * s);
+    ctx.lineCap = 'round';
+    var t = performance.now() / 1000;
+    var swing = p.onGround ? Math.sin(t * 16) * 5 * s : 5 * s;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.32, legTop);
+    ctx.lineTo(x + w * 0.32 + swing, legTop + legLen);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.68, legTop);
+    ctx.lineTo(x + w * 0.68 - swing, legTop + legLen);
+    ctx.stroke();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawBg();
+    drawGround();
+    for (var i = 0; i < gems.length; i++) drawGem(gems[i]);
+    for (var j = 0; j < obstacles.length; j++) drawObs(obstacles[j]);
+    for (var k = 0; k < enemies.length; k++) drawEnemy(enemies[k]);
+    for (var m = 0; m < bullets.length; m++) drawBullet(bullets[m]);
+    drawPlayer();
+  }
+
+  /* ---------- 主循环 ---------- */
+  function loop(t) {
+    requestAnimationFrame(loop);
+    if (!lastT) lastT = t;
+    var dt = (t - lastT) / 1000;
+    lastT = t;
+    if (!isFinite(dt) || dt < 0) dt = 0;
+    if (dt > 0.05) dt = 0.05;
+
+    updateBuildings(dt);
+    if (state === 'playing') {
+      update(dt);
+    } else {
+      bgOffset += 26 * s * dt;
+    }
+    render();
+  }
+
+  /* ---------- 输入 ---------- */
+  window.addEventListener('keydown', function (e) {
+    var k = e.code;
+    if (k === 'Space' || k === 'ArrowUp' || k === 'KeyW') {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (state === 'playing') jump();
+      else startGame();
+    } else if (k === 'ArrowDown' || k === 'KeyS') {
+      e.preventDefault();
+      slideKey = true;
+    } else if (k === 'Enter') {
+      if (state !== 'playing') startGame();
+    }
+  }, { passive: false });
+
+  window.addEventListener('keyup', function (e) {
+    var k = e.code;
+    if (k === 'ArrowDown' || k === 'KeyS') slideKey = false;
+  });
+
+  window.addEventListener('blur', function () {
+    slideKey = false;
+    slideTouch = false;
+  });
+
+  canvas.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    if (state === 'playing') jump();
+    else startGame();
+  });
+
+  btnStart.addEventListener('click', function (e) {
+    e.preventDefault();
+    startGame();
+  });
+
+  btnJump.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    if (state === 'playing') jump();
+    else startGame();
+  });
+
+  btnSlide.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    ensureAudio();
+    slideTouch = true;
+  });
+  btnSlide.addEventListener('pointerup', function () { slideTouch = false; });
+  btnSlide.addEventListener('pointercancel', function () { slideTouch = false; });
+  btnSlide.addEventListener('pointerleave', function () { slideTouch = false; });
+  window.addEventListener('pointerup', function () { slideTouch = false; });
+
+  if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) {
+    touchPad.classList.add('show');
+  }
+
+  var rt = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 120);
+  });
+
+  /* ---------- 启动 ---------- */
+  resize();
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

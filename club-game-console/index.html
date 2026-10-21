@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TORch Game Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fa;
+      --panel: #ffffff;
+      --panel-strong: #e0edf6;
+      --text: #343e49;
+      --muted: #596774;
+      --line: #b3c1ce;
+      --accent: #377362;
+      --accent-strong: #406785;
+      --warm: #f4dfa3;
+      --pink: #e5b6cb;
+      --danger: #a34560;
+      --mint-shadow: #c5e3d7;
+      --pink-shadow: #efd1df;
+      --shadow: 8px 8px 0 #d8e2ec;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        linear-gradient(rgba(94, 119, 142, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(94, 119, 142, 0.06) 1px, transparent 1px),
+        var(--bg);
+      background-size: 24px 24px, 24px 24px, auto;
+      color: var(--text);
+      font-family: "Courier New", Courier, monospace;
+      image-rendering: pixelated;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .shell {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 20px 0 52px;
+      position: relative;
+    }
+
+    .shell::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      content: "";
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.025) 0,
+        rgba(255, 255, 255, 0.025) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      mix-blend-mode: screen;
+    }
+
+    .dashboard-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 48px;
+      margin-bottom: 28px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text);
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 2px solid var(--accent);
+      border-radius: 0;
+      background: #d9eee4;
+      color: var(--accent);
+      font-size: 19px;
+      box-shadow: 4px 4px 0 var(--mint-shadow);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 0;
+      background: var(--accent);
+      box-shadow: 3px 3px 0 var(--mint-shadow);
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+      padding: 24px;
+      border: 2px solid #cbaabb;
+      background: #f7e6ee;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      position: absolute;
+      right: 18px;
+      bottom: 14px;
+      width: 104px;
+      height: 42px;
+      content: "TORCH";
+      color: rgba(124, 77, 100, 0.12);
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      transform: rotate(-8deg);
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: 1;
+      letter-spacing: 0;
+      text-shadow: 4px 4px 0 var(--pink-shadow);
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 12px 0 0;
+      color: var(--accent-strong);
+      font-size: 16px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .hero-note {
+      max-width: 240px;
+      margin: 0 0 2px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: right;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat {
+      min-height: 100px;
+      padding: 16px 18px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      background: var(--panel);
+      box-shadow: 5px 5px 0 #d8e2ec;
+      position: relative;
+    }
+
+    .stat::before {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      width: 22px;
+      height: 4px;
+      content: "";
+      background: var(--pink);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .stat:nth-child(2)::before {
+      background: #92c5af;
+    }
+
+    .stat:nth-child(3)::before {
+      background: #9fbed7;
+    }
+
+    .stat:nth-child(1) {
+      background: #fbedf3;
+    }
+
+    .stat:nth-child(2) {
+      background: #e7f4ec;
+    }
+
+    .stat:nth-child(3) {
+      background: #e8f1fa;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 8px;
+      color: var(--text);
+      font-size: 30px;
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .stat-value.accent {
+      color: var(--accent);
+    }
+
+    .library-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 0 0 12px;
+    }
+
+    .library-heading h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .library-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .search {
+      width: 100%;
+      min-height: 48px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      padding: 0 14px;
+      background: #f7fafc;
+      color: var(--text);
+      outline: none;
+    }
+
+    .search::placeholder {
+      color: var(--muted);
+      opacity: 1;
+    }
+
+    .search:focus {
+      border-color: var(--accent);
+      box-shadow: 4px 4px 0 var(--mint-shadow);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      padding: 0 16px;
+      background: var(--panel-strong);
+      color: var(--text);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+      transform: translate(-2px, -2px);
+      box-shadow: 4px 4px 0 var(--mint-shadow);
+    }
+
+    .button.primary {
+      border-color: #b49a5b;
+      background: var(--warm);
+      color: #302c26;
+      font-weight: 800;
+      box-shadow: 4px 4px 0 var(--pink-shadow);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      display: grid;
+      min-height: 268px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      padding: 18px;
+      background: var(--panel);
+      color: inherit;
+      text-align: left;
+      box-shadow: 6px 6px 0 #d8e2ec;
+      transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      position: absolute;
+      inset: 8px;
+      border: 1px solid #e0e8ef;
+      content: "";
+      pointer-events: none;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translate(-3px, -3px);
+      border-color: var(--accent);
+      background: #edf8f2;
+      outline: none;
+      box-shadow: 9px 9px 0 var(--mint-shadow);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .emoji {
+      display: grid;
+      flex: 0 0 52px;
+      width: 52px;
+      height: 52px;
+      place-items: center;
+      border: 2px solid var(--warm);
+      border-radius: 0;
+      background: #fff3d3;
+      font-size: 30px;
+      box-shadow: 4px 4px 0 var(--pink-shadow);
+    }
+
+    .card-title {
+      min-width: 0;
+    }
+
+    .card h2 {
+      margin: 2px 0 5px;
+      font-size: 20px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .author {
+      color: var(--muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .description {
+      margin: 0 0 16px;
+      color: #4d5c69;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .meta {
+      align-self: end;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .tag {
+      max-width: 100%;
+      border: 1px solid #adc7dc;
+      border-radius: 0;
+      padding: 5px 9px;
+      color: var(--accent-strong);
+      background: #e7f1fa;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .controls {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .empty {
+      display: none;
+      border: 2px dashed var(--line);
+      border-radius: 0;
+      padding: 44px 18px;
+      color: var(--muted);
+      text-align: center;
+      background: var(--panel);
+    }
+
+    .empty.is-visible {
+      display: block;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      grid-template-rows: auto 1fr;
+      z-index: 50;
+      background: var(--bg);
+    }
+
+    .overlay.is-open {
+      display: grid;
+    }
+
+    .overlay-bar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 58px;
+      padding: 8px;
+      border-bottom: 2px solid var(--accent);
+      background: var(--bg);
+    }
+
+    .overlay-title {
+      min-width: 0;
+      padding: 0 8px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .icon-button.back {
+      width: auto;
+      padding: 0 12px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .icon-button.danger:hover,
+    .icon-button.danger:focus-visible {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #000;
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        width: min(100% - 22px, 1180px);
+        padding-top: 24px;
+      }
+
+      .dashboard-nav,
+      .hero {
+        display: block;
+      }
+
+      .status {
+        margin-top: 16px;
+      }
+
+      .hero-note {
+        max-width: none;
+        margin-top: 18px;
+        text-align: left;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .library-heading {
+        align-items: flex-start;
+        display: block;
+      }
+
+      .library-heading p {
+        margin-top: 6px;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .button.primary {
+        width: 100%;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .overlay-bar {
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+      }
+
+      .overlay-title {
+        font-size: 14px;
+      }
+
+      .icon-button.back {
+        width: 42px;
+        padding: 0;
+        font-size: 0;
+      }
+
+      .icon-button.back::before {
+        content: "←";
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="dashboard-nav" aria-label="主导航">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span>TORch Game Console</span>
+      </div>
+      <div class="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>静态游戏库 · 在线</span>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div>
+        <h1>TORch Game Console</h1>
+        <p class="subtitle">点击卡片开始玩。按 Esc 返回。</p>
+      </div>
+      <p class="hero-note">一个轻量的单文件游戏空间。打开、试玩、切换，全部在浏览器内完成。</p>
+    </header>
+
+    <section class="stats" aria-label="游戏库概览">
+      <div class="stat">
+        <span class="stat-label">Games</span>
+        <strong id="gameCount" class="stat-value">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Tags</span>
+        <strong id="tagCount" class="stat-value accent">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Creators</span>
+        <strong id="authorCount" class="stat-value">0</strong>
+      </div>
+    </section>
+
+    <div class="library-heading">
+      <div>
+        <h2>Game Library</h2>
+        <p>浏览所有已加入控制台的小游戏</p>
+      </div>
+    </div>
+
+    <section class="toolbar" aria-label="游戏筛选">
+      <input id="searchInput" class="search" type="search" autocomplete="off" placeholder="搜索游戏、作者、描述或标签" aria-label="搜索游戏">
+      <button id="randomButton" class="button primary" type="button">随机游戏</button>
+    </section>
+
+    <section id="gameGrid" class="grid" aria-live="polite"></section>
+    <p id="emptyState" class="empty">没有找到游戏。</p>
+  </main>
+
+  <section id="overlay" class="overlay" aria-hidden="true" aria-label="游戏窗口">
+    <div class="overlay-bar">
+      <button id="closeButton" class="icon-button back danger" type="button" title="返回" aria-label="返回">返回</button>
+      <div id="overlayTitle" class="overlay-title"></div>
+      <button id="reloadButton" class="icon-button" type="button" title="重载" aria-label="重载">↻</button>
+      <a id="newTabButton" class="icon-button" href="about:blank" target="_blank" rel="noopener" title="新标签打开" aria-label="新标签打开">↗</a>
+      <button id="fullscreenButton" class="icon-button" type="button" title="全屏" aria-label="全屏">⛶</button>
+    </div>
+    <iframe id="gameFrame" title="Game" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-modals allow-forms" allowfullscreen></iframe>
+  </section>
+
+  <script src="games.js"></script>
+  <script>
+    (function () {
+      var games = Array.isArray(window.GAMES) ? window.GAMES : [];
+      var filteredGames = games.slice();
+      var currentGame = null;
+
+      var grid = document.getElementById("gameGrid");
+      var emptyState = document.getElementById("emptyState");
+      var gameCount = document.getElementById("gameCount");
+      var tagCount = document.getElementById("tagCount");
+      var authorCount = document.getElementById("authorCount");
+      var searchInput = document.getElementById("searchInput");
+      var randomButton = document.getElementById("randomButton");
+      var overlay = document.getElementById("overlay");
+      var overlayTitle = document.getElementById("overlayTitle");
+      var closeButton = document.getElementById("closeButton");
+      var reloadButton = document.getElementById("reloadButton");
+      var newTabButton = document.getElementById("newTabButton");
+      var fullscreenButton = document.getElementById("fullscreenButton");
+      var gameFrame = document.getElementById("gameFrame");
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function normalizeGame(game) {
+        var tags = Array.isArray(game.tags) ? game.tags : [];
+        return {
+          id: String(game.id || ""),
+          title: String(game.title || "Untitled Game"),
+          author: String(game.author || "匿名"),
+          description: String(game.description || "暂无说明"),
+          file: String(game.file || ""),
+          emoji: String(game.emoji || "🎮"),
+          tags: tags.map(function (tag) { return String(tag); }),
+          controls: String(game.controls || "鼠标 / 键盘")
+        };
+      }
+
+      function findGameById(id) {
+        for (var i = 0; i < games.length; i += 1) {
+          if (String(games[i].id) === String(id)) {
+            return normalizeGame(games[i]);
+          }
+        }
+        return null;
+      }
+
+      function getSearchText(game) {
+        return [
+          game.title,
+          game.author,
+          game.description,
+          game.controls,
+          game.tags.join(" ")
+        ].join(" ").toLowerCase();
+      }
+
+      function renderStats() {
+        var tags = {};
+        var authors = {};
+
+        games.forEach(function (rawGame) {
+          var game = normalizeGame(rawGame);
+          authors[game.author] = true;
+          game.tags.forEach(function (tag) {
+            tags[tag] = true;
+          });
+        });
+
+        gameCount.textContent = String(games.length);
+        tagCount.textContent = String(Object.keys(tags).length);
+        authorCount.textContent = String(Object.keys(authors).length);
+      }
+
+      function renderGames(list) {
+        if (!list.length) {
+          grid.innerHTML = "";
+          emptyState.classList.add("is-visible");
+          return;
+        }
+
+        emptyState.classList.remove("is-visible");
+        grid.innerHTML = list.map(function (rawGame) {
+          var game = normalizeGame(rawGame);
+          var tags = game.tags.map(function (tag) {
+            return '<span class="tag">' + escapeHtml(tag) + "</span>";
+          }).join("");
+
+          return [
+            '<button class="card" type="button" data-game-id="' + escapeHtml(game.id) + '">',
+              '<div>',
+                '<div class="card-head">',
+                  '<div class="emoji" aria-hidden="true">' + escapeHtml(game.emoji) + "</div>",
+                  '<div class="card-title">',
+                    "<h2>" + escapeHtml(game.title) + "</h2>",
+                    '<div class="author">by ' + escapeHtml(game.author) + "</div>",
+                  "</div>",
+                "</div>",
+                '<p class="description">' + escapeHtml(game.description) + "</p>",
+              "</div>",
+              '<div class="meta">',
+                '<div class="tags">' + tags + "</div>",
+                '<div class="controls">操作：' + escapeHtml(game.controls) + "</div>",
+              "</div>",
+            "</button>"
+          ].join("");
+        }).join("");
+      }
+
+      function filterGames() {
+        var query = searchInput.value.trim().toLowerCase();
+        filteredGames = games.filter(function (rawGame) {
+          var game = normalizeGame(rawGame);
+          return !query || getSearchText(game).indexOf(query) !== -1;
+        });
+        renderGames(filteredGames);
+      }
+
+      function setHashForGame(game) {
+        var nextHash = "#game=" + encodeURIComponent(game.id);
+        if (window.location.hash !== nextHash) {
+          history.pushState(null, "", nextHash);
+        }
+      }
+
+      function clearHash() {
+        if (window.location.hash) {
+          history.pushState(null, "", window.location.pathname + window.location.search);
+        }
+      }
+
+      function openGame(game, shouldUpdateHash) {
+        if (!game || !game.file) {
+          return;
+        }
+
+        currentGame = normalizeGame(game);
+        overlayTitle.textContent = currentGame.title;
+        gameFrame.title = currentGame.title;
+        gameFrame.src = currentGame.file;
+        newTabButton.href = currentGame.file;
+        overlay.classList.add("is-open");
+        overlay.setAttribute("aria-hidden", "false");
+        closeButton.focus();
+
+        if (shouldUpdateHash !== false) {
+          setHashForGame(currentGame);
+        }
+      }
+
+      function closeGame(shouldClearHash) {
+        currentGame = null;
+        overlay.classList.remove("is-open");
+        overlay.setAttribute("aria-hidden", "true");
+        overlayTitle.textContent = "";
+        gameFrame.src = "about:blank";
+        newTabButton.href = "about:blank";
+
+        if (shouldClearHash !== false) {
+          clearHash();
+        }
+      }
+
+      function openGameFromHash() {
+        var match = window.location.hash.match(/^#game=([^&]+)/);
+        if (!match) {
+          if (overlay.classList.contains("is-open")) {
+            closeGame(false);
+          }
+          return;
+        }
+
+        var game = findGameById(decodeURIComponent(match[1]));
+        if (game) {
+          openGame(game, false);
+        }
+      }
+
+      grid.addEventListener("click", function (event) {
+        var card = event.target.closest("[data-game-id]");
+        if (!card) {
+          return;
+        }
+
+        var game = findGameById(card.getAttribute("data-game-id"));
+        openGame(game, true);
+      });
+
+      searchInput.addEventListener("input", filterGames);
+
+      randomButton.addEventListener("click", function () {
+        var list = filteredGames.length ? filteredGames : games;
+        if (!list.length) {
+          return;
+        }
+
+        var index = Math.floor(Math.random() * list.length);
+        openGame(normalizeGame(list[index]), true);
+      });
+
+      closeButton.addEventListener("click", function () {
+        closeGame(true);
+      });
+
+      reloadButton.addEventListener("click", function () {
+        if (currentGame) {
+          gameFrame.src = "about:blank";
+          window.setTimeout(function () {
+            if (currentGame) {
+              gameFrame.src = currentGame.file;
+            }
+          }, 0);
+        }
+      });
+
+      fullscreenButton.addEventListener("click", function () {
+        if (gameFrame.requestFullscreen) {
+          gameFrame.requestFullscreen();
+        } else if (overlay.requestFullscreen) {
+          overlay.requestFullscreen();
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && overlay.classList.contains("is-open")) {
+          closeGame(true);
+        }
+      });
+
+      window.addEventListener("hashchange", openGameFromHash);
+
+      renderStats();
+      renderGames(filteredGames);
+      openGameFromHash();
+    })();
+  </script>
+</body>
+</html>

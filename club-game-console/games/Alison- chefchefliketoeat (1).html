@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小小餐厅 · Cooking Day</title>
+<style>
+*{box-sizing:border-box}
+:root{--wood:#9a5937;--cream:#fff3d8;--orange:#ffb84d;--green:#8bcf78;--ink:#49352b}
+body{margin:0;background:#f4d5a5;font-family:Arial,"Microsoft YaHei",sans-serif;color:var(--ink)}
+button{font:inherit;cursor:pointer;border:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 18px;background:#74432e;color:#fff4dd;border-bottom:5px solid #4f3024}
+.logo{font-weight:900;font-size:clamp(20px,3vw,30px);letter-spacing:1px}
+.hud{display:flex;gap:9px;flex-wrap:wrap}
+.pill{background:#4e3026;border:2px solid #bc8a5a;border-radius:14px;padding:8px 13px;font-weight:bold;box-shadow:inset 0 2px #986347}
+#timer{color:#ffe18a}
+.game{max-width:1250px;margin:14px auto;padding:0 12px}
+.restaurant{position:relative;overflow:hidden;border:5px solid #8c5535;border-radius:22px;background:linear-gradient(#bce5f2 0 24%,#f4e0b6 24% 56%,#c48a54 56%);box-shadow:0 8px 0 #7e4a30}
+.window{position:absolute;top:0;left:3%;width:24%;height:25%;background:linear-gradient(#9de0fa,#e5f8ff);border:9px solid #9b6846;border-top:0}
+.window:before,.window:after{content:"";position:absolute;background:#9b6846}
+.window:before{width:7px;height:100%;left:50%}.window:after{height:7px;width:100%;top:50%}
+.lights{position:absolute;right:5%;top:0;display:flex;gap:90px}
+.lamp{width:15px;height:60px;background:#78513a;position:relative}
+.lamp:after{content:"";position:absolute;bottom:-17px;left:-20px;width:55px;height:30px;border-radius:50% 50% 8px 8px;background:#ffdc83;box-shadow:0 0 25px #ffda83}
+.shelves{position:absolute;left:32%;right:3%;top:5%;height:15%;border-bottom:10px solid #a36c43;display:flex;align-items:flex-end;justify-content:space-around;font-size:clamp(20px,3vw,34px)}
+.plant{position:absolute;left:26%;top:13%;font-size:38px}
+.customer-row{position:relative;display:flex;justify-content:space-around;align-items:flex-end;height:230px;padding:30px 10px 0;z-index:2}
+.customer{width:21%;max-width:190px;min-width:105px;text-align:center;position:relative;cursor:pointer}
+.order-bubble{position:relative;background:#fff9e9;border:3px solid #d8a56a;border-radius:18px;padding:8px 4px;margin-bottom:4px;min-height:72px;box-shadow:0 4px #b67e4d;font-size:clamp(24px,3.5vw,38px)}
+.order-bubble:after{content:"";position:absolute;bottom:-12px;left:48%;border-width:12px 10px 0;border-style:solid;border-color:#fff9e9 transparent transparent}
+.patience{height:8px;background:#e8cbb1;border-radius:8px;overflow:hidden;margin:4px 10px 0}
+.patience span{display:block;height:100%;background:#7bc96f;width:100%}
+.person{font-size:clamp(48px,7vw,75px);height:76px;line-height:1.2;filter:drop-shadow(0 4px 1px #9c684b)}
+.person-name{font-size:13px;font-weight:bold;background:#fff0d4;border-radius:9px;padding:3px;display:inline-block}
+.counter{position:relative;z-index:3;background:linear-gradient(#e6b77a,#b97845);border-top:8px solid #ffe0a6;border-bottom:8px solid #865033;padding:12px;display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:12px}
+.zone{background:#f8e8c9;border:4px solid #b9814e;border-radius:16px;padding:10px;min-width:0;box-shadow:inset 0 2px #fff4db}
+.zone-title{display:flex;justify-content:space-between;align-items:center;font-weight:900;margin-bottom:8px}
+.ingredients{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ingredient{background:#fff7e7;border:2px solid #dfbd88;border-radius:12px;padding:6px 2px;min-height:72px;text-align:center;transition:.15s;box-shadow:0 3px #d3aa72}
+.ingredient:hover{transform:translateY(-3px)}
+.ingredient.selected{border-color:#59a95c;background:#e8ffe5;box-shadow:0 3px #59a95c}
+.ingredient .emoji{font-size:30px;display:block}.ingredient small{font-size:12px;font-weight:bold}
+.board{background:#dca46b;border:5px solid #a96c3d;border-radius:14px;height:145px;position:relative;display:flex;align-items:center;justify-content:center;gap:7px;overflow:hidden}
+.board .food{font-size:38px}.knife{font-size:46px;position:absolute;right:8px;bottom:2px;transform:rotate(-25deg);filter:drop-shadow(2px 3px #7c4c31)}
+.station-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.action{background:#ffca65;border:2px solid #c88a36;border-radius:10px;padding:9px 10px;font-weight:900;box-shadow:0 3px #b77a2c;flex:1;min-width:82px}
+.action.blue{background:#8dddf0;border-color:#4b9eb2;box-shadow:0 3px #43899b}
+.action.green{background:#a5df91;border-color:#5d9b4c;box-shadow:0 3px #528944}
+.action:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.pans{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pot-wrap{text-align:center}
+.pot{position:relative;height:112px;border-radius:12px;background:linear-gradient(#6e777a,#343b42);border:4px solid #30363a;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pot:before{content:"";position:absolute;width:80%;height:67%;bottom:5px;background:linear-gradient(#c8d2d4,#68777c);border-radius:12px 12px 40% 40%;border:3px solid #252a2c}
+.pot:after{content:"";position:absolute;top:8px;width:82%;height:18px;border-radius:50%;background:#a7b7ba;border:3px solid #343b40}
+.pot-food{position:relative;z-index:2;font-size:34px;margin-top:14px}
+.flame{position:absolute;bottom:0;font-size:23px;z-index:3}
+.pot-label{font-weight:bold;font-size:13px;margin-top:5px}
+.serve-zone{display:flex;flex-direction:column;gap:8px}
+.plate{min-height:112px;border-radius:15px;background:radial-gradient(ellipse,#fff 0 35%,#e5e5dc 36% 43%,#aeb3b0 44% 48%,#f5ead5 49%);border:3px solid #c8a16c;display:flex;align-items:center;justify-content:center;font-size:45px;position:relative}
+.plate.ready{box-shadow:0 0 0 4px #9cde7c,0 0 18px #fff2a6}
+.serve-hint{text-align:center;font-size:12px;font-weight:bold}
+.bottom-controls{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 2px}
+.message{font-weight:bold;background:#fff2d5;border:2px solid #d6a36c;border-radius:12px;padding:10px 14px;flex:1;min-width:200px}
+.secondary{background:#79503a;color:white;border-radius:10px;padding:10px 14px;font-weight:bold}
+.tip{text-align:center;font-size:13px;color:#684a35;padding:0 10px 16px}
+.spark{animation:spark .35s ease-in-out}
+@keyframes spark{0%{transform:rotate(0) scale(1)}50%{transform:rotate(-8deg) scale(1.12)}100%{transform:rotate(0) scale(1)}}
+@media(max-width:800px){.counter{grid-template-columns:1fr}.customer-row{height:200px}.shelves{left:34%}.window{width:25%}.lights{gap:35px}.zone{padding:8px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo">🍽️ 小小餐厅</div>
+  <div class="hud">
+    <div class="pill">⏱ <span id="timer">02:00</span></div>
+    <div class="pill">🪙 <span id="coins">0</span></div>
+    <div class="pill">⭐ <span id="score">0</span></div>
+    <div class="pill">订单 <span id="served">0</span>/6</div>
+  </div>
+</header>
+<div class="game">
+<section class="restaurant">
+  <div class="window"></div><div class="plant">🪴</div>
+  <div class="lights"><div class="lamp"></div><div class="lamp"></div><div class="lamp"></div></div>
+  <div class="shelves"><span>🪴</span><span>🫙</span><span>☕</span><span>🖼️</span><span>🪴</span></div>
+  <div class="customer-row" id="customers"></div>
+  <div class="counter">
+    <section class="zone">
+      <div class="zone-title"><span>🥬 食材篮</span><span style="font-size:12px">点击选食材</span></div>
+      <div class="ingredients" id="ingredients">
+        <button class="ingredient" data-food="🍅" data-name="番茄"><span class="emoji">🍅</span><small>番茄</small></button>
+        <button class="ingredient" data-food="🥬" data-name="青菜"><span class="emoji">🥬</span><small>青菜</small></button>
+        <button class="ingredient" data-food="🧅" data-name="洋葱"><span class="emoji">🧅</span><small>洋葱</small></button>
+        <button class="ingredient" data-food="🥩" data-name="牛排"><span class="emoji">🥩</span><small>牛排</small></button>
+        <button class="ingredient" data-food="🐟" data-name="鱼肉"><span class="emoji">🐟</span><small>鱼肉</small></button>
+        <button class="ingredient" data-food="🥔" data-name="土豆"><span class="emoji">🥔</span><small>土豆</small></button>
+      </div>
+      <div class="station-actions"><button class="action" id="chopBtn" disabled>🔪 切菜</button><button class="action blue" id="clearBtn">清空</button></div>
+    </section>
+    <section class="zone">
+      <div class="zone-title"><span>🔪 砧板 & 炉灶</span><span style="font-size:12px" id="prepLabel">准备食材</span></div>
+      <div class="board" id="board"><span style="font-size:13px;font-weight:bold;color:#70492f">选食材放到砧板上</span><span class="knife">🔪</span></div>
+      <div class="station-actions"><button class="action blue" id="panBtn" disabled>🍳 下锅</button><button class="action green" id="cookBtn" disabled>🔥 开火</button></div>
+      <div class="pans" style="margin-top:9px">
+        <div class="pot-wrap"><div class="pot" id="pan"><div class="pot-food" id="panFood">　</div><div class="flame" id="flame"></div></div><div class="pot-label" id="panLabel">平底锅</div></div>
+        <div class="pot-wrap"><div class="pot"><div class="pot-food">🥣</div></div><div class="pot-label">汤锅 / 碗</div></div>
+      </div>
+    </section>
+    <section class="zone">
+      <div class="zone-title"><span>🍽️ 出餐台</span><span style="font-size:12px">完成后上菜</span></div>
+      <div class="serve-zone">
+        <div class="plate" id="plate">🍽️</div>
+        <div class="serve-hint" id="serveHint">还没有做好的菜</div>
+        <button class="action green" id="serveBtn" disabled>🍽️ 上菜给顾客</button>
+        <div style="display:flex;justify-content:space-around;font-size:27px;background:#e4c59a;border-radius:10px;padding:7px">🥄　🍴　🧂　🫙</div>
+      </div>
+    </section>
+  </div>
+</section>
+<div class="bottom-controls">
+  <div class="message" id="message">欢迎光临！点击食材开始做菜，再切菜、下锅、烹饪，最后上菜。</div>
+  <button class="secondary" onclick="restart()">↻ 重新开始</button>
+</div>
+<div class="tip">操作提示：先点食材，再切菜 → 下锅 → 开火 → 上菜。每份料理需要 1 种食材，做完订单可赚金币！</div>
+</div>
+<script>
+const orderTypes = [
+ {name:"番茄料理",food:"🍅",ingredient:"番茄",dish:"🍅🍲",reward:12},
+ {name:"青菜料理",food:"🥬",ingredient:"青菜",dish:"🥬🍲",reward:10},
+ {name:"洋葱牛排",food:"🥩",ingredient:"牛排",dish:"🥩🥗",reward:15},
+ {name:"香煎鱼",food:"🐟",ingredient:"鱼肉",dish:"🐟🍋",reward:14},
+ {name:"土豆炖菜",food:"🥔",ingredient:"土豆",dish:"🥔🥣",reward:11},
+ {name:"蔬菜拼盘",food:"🧅",ingredient:"洋葱",dish:"🥗🧅",reward:10}
+];
+const people = ["👩🏻","👨🏻","👩🏽","👨🏽‍🦱","👵🏻","🧑🏻‍🍳"];
+let coins=0,score=0,served=0,time=120,orders=[],selected=null,chopped=false,inPan=false,cooking=false,ready=false,gameOver=false,cookLeft=0,patienceTimer=null,mainTimer=null;
+const $ = id => document.getElementById(id);
+function makeOrders(){
+ orders=[];
+ for(let i=0;i<4;i++){
+  const recipe=orderTypes[(served+i)%orderTypes.length];
+  orders.push({recipe,face:people[(served+i)%people.length],patience:100,active:true});
+ }
+ renderCustomers();
+}
+function renderCustomers(){
+ $("customers").innerHTML="";
+ orders.forEach((o,i)=>{
+  const el=document.createElement("div");el.className="customer";
+  el.innerHTML=`<div class="order-bubble">${o.recipe.dish}</div><div class="patience"><span style="width:${o.patience}%"></span></div><div class="person">${o.face}</div><div class="person-name">${o.recipe.name}</div>`;
+  el.onclick=()=>{if(!gameOver){orders.unshift(orders.splice(i,1)[0]);renderCustomers();msg("你正在为「"+orders[0].recipe.name+"」准备料理。");}};
+  $("customers").appendChild(el);
+ });
+}
+function msg(t){$("message").textContent=t}
+function updateHud(){
+ $("coins").textContent=coins;$("score").textContent=score;$("served").textContent=served;
+ $("timer").textContent=String(Math.floor(time/60)).padStart(2,"0")+":"+String(time%60).padStart(2,"0");
+}
+function updateButtons(){
+ $("chopBtn").disabled=!selected||chopped||gameOver;
+ $("panBtn").disabled=!chopped||inPan||gameOver;
+ $("cookBtn").disabled=!inPan||cooking||ready||gameOver;
+ $("serveBtn").disabled=!ready||gameOver;
+}
+function drawBoard(){
+ if(selected){
+  $("board").innerHTML=`<span class="food">${selected.food}</span><span class="knife">🔪</span>`;
+  $("prepLabel").textContent=chopped?"切好了！":"待切食材";
+ }else{
+  $("board").innerHTML='<span style="font-size:13px;font-weight:bold;color:#70492f">选食材放到砧板上</span><span class="knife">🔪</span>';
+  $("prepLabel").textContent="准备食材";
+ }
+}
+document.querySelectorAll(".ingredient").forEach(btn=>{
+ btn.addEventListener("click",()=>{
+  if(gameOver||inPan||ready)return;
+  document.querySelectorAll(".ingredient").forEach(b=>b.classList.remove("selected"));
+  btn.classList.add("selected");
+  selected={food:btn.dataset.food,name:btn.dataset.name};
+  chopped=false;drawBoard();updateButtons();msg("选中了"+selected.name+"！点击「切菜」开始准备。");
+ });
+});
+$("chopBtn").onclick=()=>{
+ if(!selected||chopped)return;
+ chopped=true;drawBoard();updateButtons();
+ $("board").classList.remove("spark");void $("board").offsetWidth;$("board").classList.add("spark");
+ msg("咔嚓咔嚓！"+selected.name+"切好了，可以下锅啦。");
+};
+$("clearBtn").onclick=()=>{
+ if(inPan||ready)return;
+ selected=null;chopped=false;document.querySelectorAll(".ingredient").forEach(b=>b.classList.remove("selected"));
+ drawBoard();updateButtons();msg("砧板清空了，重新选择食材吧。");
+};
+$("panBtn").onclick=()=>{
+ if(!chopped)return;
+ inPan=true;$("panFood").textContent=selected.food;$("panLabel").textContent="食材已下锅";
+ updateButtons();msg("食材已经放进锅里！点击「开火」开始烹饪。");
+};
+$("cookBtn").onclick=()=>{
+ if(!inPan||cooking||ready)return;
+ cooking=true;cookLeft=3;$("flame").textContent="🔥";$("panLabel").textContent="烹饪中...";
+ updateButtons();msg("滋啦——锅里正在烹饪！再等几秒。");
+ const tick=setInterval(()=>{
+  cookLeft--;
+  $("panFood").textContent=cookLeft%2===0?"♨️"+selected.food:selected.food+"♨️";
+  if(cookLeft<=0){
+   clearInterval(tick);cooking=false;ready=true;$("flame").textContent="";
+   $("plate").textContent=selected.food+(selected.name==="牛排"?"🥗":"🍲");
+   $("plate").classList.add("ready");$("serveHint").textContent="✨ 料理完成！可以出餐";
+   $("panLabel").textContent="锅已空";$("panFood").textContent="";
+   updateButtons();msg("料理做好啦！点击「上菜给顾客」完成订单。");
+  }
+ },800);
+};
+$("serveBtn").onclick=()=>{
+ if(!ready||gameOver)return;
+ const o=orders[0];const reward=(orderTypes.find(r=>r.ingredient===selected.name)||orderTypes[0]).reward;
+ coins+=reward;score+=reward*10;served++;
+ msg("上菜成功！🪙 +"+reward+" 金币，⭐ +"+(reward*10)+" 分！");
+ selected=null;chopped=false;inPan=false;ready=false;
+ document.querySelectorAll(".ingredient").forEach(b=>b.classList.remove("selected"));
+ $("plate").textContent="🍽️";$("plate").classList.remove("ready");$("serveHint").textContent="等待下一份料理";
+ $("panFood").textContent="";$("flame").textContent="";$("panLabel").textContent="平底锅";
+ orders.shift();
+ if(served>=6){endGame(true);return;}
+ const next=orderTypes[(served+2)%orderTypes.length];
+ orders.push({recipe:next,face:people[(served+3)%people.length],patience:100,active:true});
+ renderCustomers();drawBoard();updateButtons();updateHud();
+};
+function endGame(won){
+ gameOver=true;clearInterval(mainTimer);
+ msg(won?"🎉 太棒了！完成 6 份订单！最终得分："+score+"。":"⏰ 打烊啦！完成 "+served+" 份订单，最终得分："+score+"。");
+ updateButtons();
+}
+function restart(){
+ clearInterval(mainTimer);coins=0;score=0;served=0;time=120;selected=null;chopped=false;inPan=false;cooking=false;ready=false;gameOver=false;
+ $("plate").textContent="🍽️";$("plate").classList.remove("ready");$("serveHint").textContent="还没有做好的菜";$("panFood").textContent="";$("flame").textContent="";$("panLabel").textContent="平底锅";
+ document.querySelectorAll(".ingredient").forEach(b=>b.classList.remove("selected"));
+ makeOrders();drawBoard();updateButtons();updateHud();msg("新的一天开始啦！点击食材，开始准备第一份料理。");
+ mainTimer=setInterval(()=>{
+  if(gameOver)return;
+  time--;orders.forEach(o=>o.patience=Math.max(0,o.patience-0.5));
+  renderCustomers();updateHud();
+  if(time<=0)endGame(false);
+ },1000);
+}
+restart();
+</script>
+</body>
+</html>

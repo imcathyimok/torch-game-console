@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>蛋糕工坊 · 手作大师</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #fef4f0 0%, #f9e8f0 50%, #f0e6f8 100%);
+    color: #5a4440; overflow: hidden;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; max-width: 1240px; margin: 0 auto; padding: 10px 14px 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 8px; }
+  h1 {
+    font-size: 20px; letter-spacing: 1.5px;
+    background: linear-gradient(90deg,#ff7aa8,#ffa76b,#ffd36b);
+    -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800;
+  }
+  .steps { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step {
+    font-size: 12px; padding: 5px 12px; border-radius: 999px;
+    background: #fff; color: #b09a92; border: 1px solid #f0dfd6;
+    transition: .25s; white-space: nowrap; font-weight: 600;
+  }
+  .step.active { background: linear-gradient(135deg,#ff8fb4,#ffab7a); color: #fff; border-color: transparent; box-shadow: 0 4px 14px rgba(255,143,180,.4); }
+  .step.done { background: #ffe8f0; color: #e0709a; border-color: #ffd0e0; }
+  .main { flex: 1; display: flex; gap: 14px; min-height: 0; }
+  .stage { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; }
+  canvas {
+    display: block; border-radius: 24px;
+    background: linear-gradient(180deg, #fffbfd 0%, #fff5f0 100%);
+    box-shadow: 0 20px 50px rgba(200,150,170,.25), 0 0 0 1px rgba(255,255,255,.9) inset;
+    cursor: crosshair; touch-action: none;
+  }
+  .panel { flex: 0 0 320px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-thumb { background: #f0cfda; border-radius: 99px; }
+  .card {
+    background: rgba(255,255,255,.82); backdrop-filter: blur(12px);
+    border-radius: 20px; padding: 14px 16px;
+    box-shadow: 0 8px 24px rgba(210,170,190,.18), 0 0 0 1px rgba(255,255,255,.9) inset;
+  }
+  .card h3 { font-size: 13px; color: #a68d84; font-weight: 700; margin-bottom: 10px; letter-spacing: .5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; padding: 7px 11px; border-radius: 999px;
+    border: 1.5px solid #f1dfe6; background: #fff; color: #6b5550;
+    cursor: pointer; transition: all .18s; font-family: inherit; font-weight: 500;
+  }
+  .chip:hover { border-color: #ffb8ce; transform: translateY(-1px); }
+  .chip.on { background: linear-gradient(135deg,#ffd6e6,#ffe6d0); border-color: #ff9cc0; color: #c2456f; font-weight: 700; box-shadow: 0 4px 10px rgba(255,143,180,.25); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.08); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch {
+    width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #fff;
+    cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.15); transition: all .18s; padding: 0;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.on { box-shadow: 0 0 0 3px #ff8fb4, 0 3px 12px rgba(255,143,180,.5); transform: scale(1.08); }
+  .row { display: flex; gap: 8px; margin-top: 4px; }
+  .btn {
+    flex: 1; font-size: 13px; padding: 10px 12px; border-radius: 12px;
+    border: 1.5px solid #f1dfe6; background: #fff; color: #6b5550;
+    cursor: pointer; font-family: inherit; font-weight: 600; transition: all .18s;
+  }
+  .btn:hover { border-color: #ffb8ce; }
+  .btn.primary { background: linear-gradient(135deg,#ff8fb4,#ffa97a); color: #fff; border: none; box-shadow: 0 6px 18px rgba(255,143,180,.4); }
+  .btn.primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+  .hint { font-size: 11.5px; color: #b09a92; line-height: 1.65; margin-bottom: 8px; }
+  .bar { height: 12px; border-radius: 99px; background: #f6e6ec; overflow: hidden; margin: 8px 0 6px; box-shadow: inset 0 1px 3px rgba(0,0,0,.06); }
+  .bar > i { display: block; height: 100%; width: 0%; border-radius: 99px; background: linear-gradient(90deg,#ffb0cd,#ff9a76); transition: width .1s linear; }
+  .mode { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .mode .chip { flex: 1 1 auto; justify-content: center; }
+  .text-input {
+    width: 100%; font-size: 13px; padding: 9px 12px; border-radius: 10px;
+    border: 1.5px solid #f1dfe6; font-family: inherit; color: #5a4440; outline: none;
+    margin-bottom: 6px;
+  }
+  .text-input:focus { border-color: #ffb8ce; }
+  @media (max-width: 860px) {
+    .main { flex-direction: column; }
+    .panel { flex: 0 0 auto; max-height: 44vh; }
+    .stage { flex: 1 1 auto; min-height: 0; }
+    h1 { font-size: 17px; }
+    .step { font-size: 11px; padding: 4px 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🍰 蛋糕工坊 · 手作大师</h1>
+    <div class="steps" id="steps"></div>
+  </header>
+  <div class="main">
+    <div class="stage" id="stage"><canvas id="cake"></canvas></div>
+    <div class="panel" id="panel"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   蛋糕工坊 · 手作大师
+   ========================================================= */
+const W = 700, H = 620;
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+const canvas = document.getElementById('cake');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+const panel = document.getElementById('panel');
+const stepsEl = document.getElementById('steps');
+
+/* 离屏层：奶油、撒粉 */
+const creamLayer = document.createElement('canvas');
+creamLayer.width = W * dpr; creamLayer.height = H * dpr;
+const creamCtx = creamLayer.getContext('2d');
+creamCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+const dustLayer = document.createElement('canvas');
+dustLayer.width = W * dpr; dustLayer.height = H * dpr;
+const dustCtx = dustLayer.getContext('2d');
+dustCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+/* ---------- 数据 ---------- */
+const SPONGES = [
+  { id: 'vanilla',    name: '原味海绵', c1: '#fbe9c8', c2: '#f0d8a0', pore: '#dcbf80' },
+  { id: 'chocolate',  name: '巧克力',   c1: '#8a5a3c', c2: '#6a3f24', pore: '#4d2c15' },
+  { id: 'redvelvet',  name: '红丝绒',   c1: '#c04858', c2: '#a62f42', pore: '#7d1f2f' },
+  { id: 'matcha',     name: '抹茶',     c1: '#a8ce8a', c2: '#8cb46c', pore: '#6a9250' },
+  { id: 'strawberry', name: '草莓',     c1: '#f8c4d2', c2: '#eea8bd', pore: '#d88aa5' },
+  { id: 'taro',       name: '芋泥',     c1: '#d8c2ec', c2: '#bda4dd', pore: '#9d85c0' },
+  { id: 'lemon',      name: '柠檬',     c1: '#faeaa0', c2: '#f2dc7c', pore: '#d8bc54' },
+  { id: 'coffee',     name: '咖啡',     c1: '#b89068', c2: '#9c764e', pore: '#7a5838' },
+];
+const FILLINGS = [
+  { id: 'strawberryJam', name: '草莓酱',  c1: '#e05568', c2: '#c73a4e', kind: 'jam' },
+  { id: 'blueberryJam',  name: '蓝莓酱',  c1: '#5a52b0', c2: '#413a92', kind: 'jam' },
+  { id: 'mango',         name: '芒果丁',  c1: '#f8c554', c2: '#e8a838', kind: 'chunks' },
+  { id: 'oreo',          name: '奥利奥碎', c1: '#5a5248', c2: '#3a342c', kind: 'chunks' },
+  { id: 'nuts',          name: '坚果碎',  c1: '#c09868', c2: '#9a764a', kind: 'chunks' },
+  { id: 'pudding',       name: '布丁',    c1: '#fadf9a', c2: '#f0c86c', kind: 'smooth' },
+];
+const CREAM_COLORS = [
+  { id: 'ivory',  name: '象牙白', color: '#fdf6ea' },
+  { id: 'pink',   name: '樱花粉', color: '#f8b4c8' },
+  { id: 'yellow', name: '奶油黄', color: '#fae296' },
+  { id: 'mint',   name: '薄荷绿', color: '#a8d8b0' },
+  { id: 'blue',   name: '雾霾蓝', color: '#a8c4e8' },
+  { id: 'purple', name: '薰衣草', color: '#c8b0e8' },
+  { id: 'choco',  name: '可可',   color: '#a87858' },
+  { id: 'rose',   name: '玫瑰红', color: '#e07888' },
+  { id: 'gray',   name: '高级灰', color: '#c8c0c8' },
+];
+const CREAM_TEXTURES = [
+  { id: 'fresh',   name: '鲜奶油' },
+  { id: 'butter',  name: '奶油霜' },
+  { id: 'ganache', name: '甘纳许' },
+];
+const SPRINKLES = [
+  { id: 'none',     name: '不加',     color: null },
+  { id: 'confetti', name: '彩色糖珠', color: '#ff7aa0', multi: true },
+  { id: 'choco',    name: '巧克力碎', color: '#5a3a20' },
+  { id: 'cookie',   name: '饼干碎',   color: '#c09060' },
+  { id: 'matcha',   name: '抹茶粉',   color: '#7aa050' },
+  { id: 'coconut',  name: '椰蓉',     color: '#f5f0e0' },
+];
+const DECORATIONS = [
+  { id: 'strawberry', name: '草莓' },
+  { id: 'blueberry',  name: '蓝莓' },
+  { id: 'cherry',     name: '樱桃' },
+  { id: 'mint',       name: '薄荷' },
+  { id: 'candle',     name: '蜡烛' },
+  { id: 'star',       name: '星星' },
+  { id: 'macaron',    name: '马卡龙' },
+  { id: 'choco',      name: '巧克力牌' },
+];
+const DRIP_COLORS = [
+  { id: 'choco', name: '巧克力', color: '#5a3820' },
+  { id: 'caramel', name: '焦糖', color: '#c08030' },
+  { id: 'strawberry', name: '草莓', color: '#e05568' },
+  { id: 'matcha', name: '抹茶', color: '#7aa050' },
+  { id: 'white', name: '白巧', color: '#f5ead0' },
+];
+const NOZZLES = [
+  { id: 'round',  name: '圆形' },
+  { id: 'star',   name: '星形' },
+  { id: 'petal',  name: '花瓣' },
+  { id: 'leaf',   name: '叶子' },
+];
+const DUSTS = [
+  { id: 'none',   name: '不撒',    color: null },
+  { id: 'sugar',  name: '糖粉',    color: '#ffffff' },
+  { id: 'cocoa',  name: '可可粉',  color: '#6a3f24' },
+  { id: 'matcha', name: '抹茶粉',  color: '#7aa050' },
+  { id: 'pink',   name: '草莓粉',  color: '#f8a4b8' },
+];
+const BACKGROUNDS = [
+  { id: 'pink',   name: '樱粉', a: '#fef7f3', b: '#fdf1f5', c: '#f4ecfa' },
+  { id: 'mint',   name: '薄荷', a: '#f2fbf6', b: '#e8f6ef', c: '#e0f0ee' },
+  { id: 'butter', name: '奶油', a: '#fffbf0', b: '#fdf2e0', c: '#f5e8d8' },
+];
+
+/* ---------- 状态 ---------- */
+let step = 0;
+let stack = [];
+let creamColor = 'pink';
+let creamTexture = 'fresh';
+let sprinkle = 'none';
+let mixProgress = 0;
+let mixTotalAngle = 0;
+let lastAngle = null;
+const MIX_TARGET = Math.PI * 8;
+
+let frostCoverage = 0;
+const FROST_GRID = { w: 30, h: 40 };
+let frostGrid = new Array(FROST_GRID.w * FROST_GRID.h).fill(0);
+let frostTotal = 0;
+let lastPaint = null;
+
+let decoMode = 'piping'; // piping | swirl | drip | top | text | dust
+let pipingColor = '#f8b4c8';
+let pipingNozzle = 'star';
+let dripColor = 'choco';
+let dustColor = 'none';
+let cakeText = '';
+let textColor = '#c2456f';
+let textFont = 'bold 26px -apple-system, "PingFang SC", sans-serif';
+let selectedDeco = 'strawberry';
+let decorations = [];      // {x,y,id,scale,lit}
+let drips = [];
+let pipingStrokes = [];    // {points:[{x,y}], color, nozzle}
+let currentStroke = null;
+let swirls = [];           // {x,y,color,nozzle,rot}
+
+let dragDeco = null;
+let dragOffset = { x: 0, y: 0 };
+let hoverDeco = null;
+
+let isCut = false;
+let cutProgress = 0;
+
+let bgTheme = 'pink';
+
+/* ---------- 工具 ---------- */
+function rnd(i) { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 0xff) + amt));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + amt));
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+function rgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width * W,
+    y: (e.clientY - rect.top) / rect.height * H,
+  };
+}
+function getCakeBounds() {
+  const sc = stack.filter(i => i.type === 'sponge').length;
+  const fc = stack.filter(i => i.type === 'filling').length;
+  const totalH = sc * 46 + fc * 12;
+  const baseY = H - 155;
+  const topY = baseY - totalH;
+  const cakeW = 250;
+  const cx = W / 2 - 20;
+  return { cx, cakeW, topY, baseY, left: cx - cakeW / 2, right: cx + cakeW / 2 };
+}
+
+/* ---------- 画布尺寸 ---------- */
+function setupCanvas() {
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function fitCanvas() {
+  const cw = stage.clientWidth, ch = stage.clientHeight;
+  if (cw <= 0 || ch <= 0) return;
+  const s = Math.min(cw / W, ch / H);
+  canvas.style.width = Math.round(W * s) + 'px';
+  canvas.style.height = Math.round(H * s) + 'px';
+}
+
+/* =========================================================
+   背景 / 盘子 / 蛋糕托
+   ========================================================= */
+function drawBackground() {
+  const t = BACKGROUNDS.find(b => b.id === bgTheme) || BACKGROUNDS[0];
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, t.a); g.addColorStop(0.5, t.b); g.addColorStop(1, t.c);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  const halo1 = ctx.createRadialGradient(W * 0.3, H * 0.2, 0, W * 0.3, H * 0.2, 300);
+  halo1.addColorStop(0, 'rgba(255, 220, 235, 0.55)');
+  halo1.addColorStop(1, 'rgba(255, 220, 235, 0)');
+  ctx.fillStyle = halo1; ctx.fillRect(0, 0, W, H);
+
+  const halo2 = ctx.createRadialGradient(W * 0.75, H * 0.75, 0, W * 0.75, H * 0.75, 320);
+  halo2.addColorStop(0, 'rgba(240, 220, 255, 0.5)');
+  halo2.addColorStop(1, 'rgba(240, 220, 255, 0)');
+  ctx.fillStyle = halo2; ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 45; i++) {
+    const x = rnd(i * 3.7) * W, y = rnd(i * 7.1) * H;
+    const r = 0.6 + rnd(i * 11.3) * 1.4;
+    ctx.fillStyle = `rgba(255, 200, 220, ${0.15 + rnd(i * 5.5) * 0.22})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawPlate(bounds) {
+  const cx = bounds.cx, cy = bounds.baseY + 6;
+
+  // 阴影
+  ctx.fillStyle = 'rgba(180, 130, 150, 0.15)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + 14, 210, 24, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 金色蛋糕托
+  const g = ctx.createLinearGradient(cx - 200, cy, cx + 200, cy);
+  g.addColorStop(0, '#c8a878');
+  g.addColorStop(0.3, '#f0d8a8');
+  g.addColorStop(0.5, '#ffe8c8');
+  g.addColorStop(0.7, '#f0d8a8');
+  g.addColorStop(1, '#c8a878');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 195, 26, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 托盘边缘
+  ctx.strokeStyle = 'rgba(140, 100, 60, 0.4)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 195, 26, 0, 0, Math.PI * 2); ctx.stroke();
+
+  // 内圈装饰
+  const ig = ctx.createLinearGradient(cx - 170, cy, cx + 170, cy);
+  ig.addColorStop(0, '#f8e8c8');
+  ig.addColorStop(0.5, '#fff5e0');
+  ig.addColorStop(1, '#f8e8c8');
+  ctx.fillStyle = ig;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 175, 20, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 花纹
+  ctx.strokeStyle = 'rgba(200, 160, 100, 0.5)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const r1 = 165, r2 = 175;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1 * 0.13);
+    ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2 * 0.13);
+    ctx.stroke();
+  }
+
+  // 高光
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.beginPath(); ctx.ellipse(cx - 30, cy - 8, 110, 10, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/* =========================================================
+   蛋糕层
+   ========================================================= */
+function drawSpongeLayer(x, y, w, h, s) {
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, s.c1); g.addColorStop(1, s.c2);
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+
+  for (let i = 0; i < 70; i++) {
+    const px = x + rnd(i * 3.13 + s.c1.length) * w;
+    const py = y + rnd(i * 7.77 + s.c1.length * 2) * h;
+    const r = 0.5 + rnd(i * 11.31) * 1.6;
+    ctx.fillStyle = s.pore;
+    ctx.globalAlpha = 0.25 + rnd(i * 5.5) * 0.35;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.fillRect(x, y, w, 2);
+  ctx.fillStyle = 'rgba(90, 60, 40, 0.12)';
+  ctx.fillRect(x, y + h - 3, w, 3);
+
+  const lg = ctx.createLinearGradient(x, 0, x + 8, 0);
+  lg.addColorStop(0, 'rgba(0,0,0,0.08)'); lg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lg; ctx.fillRect(x, y, 8, h);
+
+  const rg = ctx.createLinearGradient(x + w - 8, 0, x + w, 0);
+  rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, 'rgba(0,0,0,0.08)');
+  ctx.fillStyle = rg; ctx.fillRect(x + w - 8, y, 8, h);
+}
+
+function drawFillingLayer(x, y, w, h, f) {
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, f.c1); g.addColorStop(1, f.c2);
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+
+  if (f.kind === 'jam') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    for (let i = 0; i < 28; i++) {
+      const px = x + rnd(i * 2.31 + f.c1.length) * w;
+      const py = y + rnd(i * 5.17 + f.c1.length) * h;
+      ctx.beginPath(); ctx.arc(px, py, 0.8 + rnd(i * 3.7) * 1, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillRect(x, y + 1, w, 1.5);
+  } else if (f.kind === 'chunks') {
+    for (let i = 0; i < 34; i++) {
+      const px = x + rnd(i * 3.71 + f.c1.length * 2) * w;
+      const py = y + rnd(i * 6.13 + f.c1.length) * h;
+      const sz = 1.8 + rnd(i * 9.7) * 2.2;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(px, py, sz, sz);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillRect(px - 0.4, py - 0.4, sz * 0.55, sz * 0.55);
+    }
+  } else {
+    const sg = ctx.createLinearGradient(x, y, x, y + h);
+    sg.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+    sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+    sg.addColorStop(1, 'rgba(120, 80, 40, 0.1)');
+    ctx.fillStyle = sg; ctx.fillRect(x, y, w, h);
+  }
+}
+
+function drawCakeBody(bounds) {
+  let y = bounds.baseY;
+  const layers = [];
+  for (const item of stack) {
+    const h = item.type === 'sponge' ? 46 : 12;
+    layers.push({ item, y: y - h, h });
+    y -= h;
+  }
+  for (const { item, y, h } of layers) {
+    if (item.type === 'sponge') {
+      const s = SPONGES.find(v => v.id === item.id);
+      if (s) drawSpongeLayer(bounds.left, y, bounds.cakeW, h, s);
+    } else {
+      const f = FILLINGS.find(v => v.id === item.id);
+      if (f) drawFillingLayer(bounds.left, y, bounds.cakeW, h, f);
+    }
+  }
+}
+
+/* =========================================================
+   奶油涂抹：一笔一笔画上去
+   ========================================================= */
+function getCreamRGB() {
+  const c = CREAM_COLORS.find(v => v.id === creamColor);
+  return c ? c.color : '#fdf6ea';
+}
+
+function paintFrostAt(x, y, pressure = 1) {
+  const b = getCakeBounds();
+  const pad = 16;
+  const fx = b.left - pad, fy = b.topY - pad;
+  const fw = b.cakeW + pad * 2, fh = b.baseY - b.topY + pad * 2;
+
+  if (x < fx - 40 || x > fx + fw + 40) return;
+  if (y < fy - 40 || y > fy + fh + 40) return;
+
+  const px = Math.max(fx, Math.min(fx + fw, x));
+  const py = Math.max(fy, Math.min(fy + fh, y));
+  const col = getCreamRGB();
+
+  // 主奶油点
+  const r = 32 * pressure;
+  const g = creamCtx.createRadialGradient(px, py, r * 0.15, px, py, r);
+  g.addColorStop(0, rgba(shade(col, 15), 1));
+  g.addColorStop(0.55, rgba(col, 1));
+  g.addColorStop(0.9, rgba(shade(col, -10), 0.9));
+  g.addColorStop(1, rgba(shade(col, -20), 0));
+  creamCtx.fillStyle = g;
+  creamCtx.beginPath(); creamCtx.arc(px, py, r, 0, Math.PI * 2); creamCtx.fill();
+
+  // 高光点
+  const hg = creamCtx.createRadialGradient(px - r * 0.3, py - r * 0.35, 0, px - r * 0.3, py - r * 0.35, r * 0.5);
+  hg.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+  hg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  creamCtx.fillStyle = hg;
+  creamCtx.beginPath(); creamCtx.arc(px - r * 0.3, py - r * 0.35, r * 0.5, 0, Math.PI * 2); creamCtx.fill();
+
+  // 阴影点
+  const sg = creamCtx.createRadialGradient(px + r * 0.3, py + r * 0.4, 0, px + r * 0.3, py + r * 0.4, r * 0.5);
+  sg.addColorStop(0, rgba(shade(col, -25), 0.45));
+  sg.addColorStop(1, rgba(shade(col, -25), 0));
+  creamCtx.fillStyle = sg;
+  creamCtx.beginPath(); creamCtx.arc(px + r * 0.3, py + r * 0.4, r * 0.5, 0, Math.PI * 2); creamCtx.fill();
+
+  // 边缘滴落（靠近蛋糕左右边缘时）
+  const distLeft = Math.abs(px - (b.left - pad + 8));
+  const distRight = Math.abs(px - (b.right + pad - 8));
+  if (distLeft < 30 || distRight < 30) {
+    if (Math.random() < 0.35) {
+      const dripX = distLeft < distRight ? b.left - pad + 8 : b.right + pad - 8;
+      const dripLen = 12 + Math.random() * 30;
+      const dripW = 8 + Math.random() * 6;
+      creamCtx.fillStyle = col;
+      creamCtx.beginPath();
+      creamCtx.moveTo(dripX - dripW / 2, b.topY + pad - 4);
+      creamCtx.quadraticCurveTo(dripX - dripW / 2 - 2, b.topY + pad + dripLen * 0.5, dripX, b.topY + pad + dripLen);
+      creamCtx.quadraticCurveTo(dripX + dripW / 2 + 2, b.topY + pad + dripLen * 0.5, dripX + dripW / 2, b.topY + pad - 4);
+      creamCtx.closePath();
+      creamCtx.fill();
+    }
+  }
+
+  // 覆盖网格
+  const gx = Math.floor((px - fx) / fw * FROST_GRID.w);
+  const gy = Math.floor((py - fy) / fh * FROST_GRID.h);
+  const brush = 4;
+  let added = 0;
+  for (let dy = -brush; dy <= brush; dy++) {
+    for (let dx = -brush; dx <= brush; dx++) {
+      if (dx * dx + dy * dy > brush * brush) continue;
+      const nx = gx + dx, ny = gy + dy;
+      if (nx < 0 || nx >= FROST_GRID.w) continue;
+      if (ny < 0 || ny >= FROST_GRID.h) continue;
+      const idx = ny * FROST_GRID.w + nx;
+      if (!frostGrid[idx]) { frostGrid[idx] = 1; added++; }
+    }
+  }
+  if (added > 0) {
+    frostTotal += added;
+    frostCoverage = Math.min(1, frostTotal / (FROST_GRID.w * FROST_GRID.h));
+    syncFrostUI();
+  }
+}
+
+function paintFrostLine(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.max(1, Math.ceil(dist / 6));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    paintFrostAt(x1 + dx * t, y1 + dy * t, 1);
+  }
+}
+
+/* =========================================================
+   撒粉
+   ========================================================= */
+function sprinkleDust(x, y) {
+  if (dustColor === 'none') return;
+  const b = getCakeBounds();
+  if (x < b.left - 30 || x > b.right + 30) return;
+  if (y < b.topY - 40 || y > b.baseY + 20) return;
+
+  const d = DUSTS.find(v => v.id === dustColor);
+  if (!d || !d.color) return;
+
+  for (let i = 0; i < 12; i++) {
+    const px = x + (Math.random() - 0.5) * 60;
+    const py = y + (Math.random() - 0.5) * 60;
+    const r = 0.4 + Math.random() * 1.4;
+    dustCtx.fillStyle = d.color;
+    dustCtx.globalAlpha = 0.5 + Math.random() * 0.5;
+    dustCtx.beginPath();
+    dustCtx.arc(px, py, r, 0, Math.PI * 2);
+    dustCtx.fill();
+  }
+  dustCtx.globalAlpha = 1;
+}
+
+/* =========================================================
+   装饰物绘制
+   ========================================================= */
+function drawDecorationShape(c, id, size, extra = {}) {
+  if (id === 'strawberry') {
+    c.fillStyle = '#e02848';
+    c.beginPath();
+    c.moveTo(0, size * 0.4);
+    c.bezierCurveTo(-size * 0.5, size * 0.1, -size * 0.42, -size * 0.45, 0, -size * 0.42);
+    c.bezierCurveTo(size * 0.42, -size * 0.45, size * 0.5, size * 0.1, 0, size * 0.4);
+    c.fill();
+    c.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    c.beginPath(); c.ellipse(-size * 0.14, -size * 0.06, size * 0.06, size * 0.14, -0.4, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fae090';
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      c.beginPath();
+      c.ellipse(Math.cos(a) * size * 0.18, Math.sin(a) * size * 0.18, size * 0.03, size * 0.05, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = '#3f9a48';
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i - 2) * 0.35;
+      c.save(); c.rotate(a + Math.PI / 2);
+      c.beginPath(); c.ellipse(0, -size * 0.42, size * 0.14, size * 0.05, 0, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }
+    c.fillStyle = '#2f7a38';
+    c.fillRect(-size * 0.03, -size * 0.55, size * 0.06, size * 0.18);
+  } else if (id === 'blueberry') {
+    const g = c.createRadialGradient(-size * 0.12, -size * 0.12, 0, 0, 0, size * 0.45);
+    g.addColorStop(0, '#6a6ab0'); g.addColorStop(0.7, '#414190'); g.addColorStop(1, '#2a2a70');
+    c.fillStyle = g;
+    c.beginPath(); c.arc(0, 0, size * 0.42, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    c.beginPath(); c.ellipse(-size * 0.12, -size * 0.14, size * 0.09, size * 0.05, -0.5, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#2a2a5a'; c.lineWidth = size * 0.03;
+    for (let i = 0; i < 4; i++) {
+      c.save(); c.rotate(i * Math.PI / 4);
+      c.beginPath(); c.moveTo(0, -size * 0.12); c.lineTo(0, -size * 0.28); c.stroke();
+      c.restore();
+    }
+  } else if (id === 'cherry') {
+    const g = c.createRadialGradient(-size * 0.1, 0, 0, 0, size * 0.1, size * 0.42);
+    g.addColorStop(0, '#ff5070'); g.addColorStop(1, '#a01828');
+    c.fillStyle = g;
+    c.beginPath(); c.arc(0, size * 0.1, size * 0.38, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    c.beginPath(); c.ellipse(-size * 0.14, -size * 0.02, size * 0.08, size * 0.06, -0.5, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#4a7a38'; c.lineWidth = size * 0.06;
+    c.beginPath();
+    c.moveTo(0, -size * 0.25);
+    c.quadraticCurveTo(size * 0.2, -size * 0.55, size * 0.35, -size * 0.6);
+    c.stroke();
+  } else if (id === 'mint') {
+    c.save(); c.rotate(-0.3);
+    c.fillStyle = '#4aa858';
+    c.beginPath();
+    c.moveTo(0, -size * 0.5);
+    c.bezierCurveTo(size * 0.4, -size * 0.3, size * 0.35, size * 0.3, 0, size * 0.45);
+    c.bezierCurveTo(-size * 0.35, size * 0.3, -size * 0.4, -size * 0.3, 0, -size * 0.5);
+    c.fill(); c.restore();
+    c.strokeStyle = '#2f7a38'; c.lineWidth = size * 0.04;
+    c.beginPath(); c.moveTo(0, -size * 0.4); c.lineTo(0, size * 0.4); c.stroke();
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.moveTo(0, -size * 0.15 + i * size * 0.2); c.lineTo(size * 0.18, -size * 0.25 + i * size * 0.2);
+      c.moveTo(0, -size * 0.15 + i * size * 0.2); c.lineTo(-size * 0.18, -size * 0.25 + i * size * 0.2);
+      c.stroke();
+    }
+  } else if (id === 'candle') {
+    const candleH = size * 0.9;
+    const lit = extra.lit !== false;
+    const cg = c.createLinearGradient(-size * 0.12, 0, size * 0.12, 0);
+    cg.addColorStop(0, '#e8d0b8'); cg.addColorStop(0.5, '#fff8ea'); cg.addColorStop(1, '#d8bca0');
+    c.fillStyle = cg;
+    c.fillRect(-size * 0.13, -candleH * 0.5, size * 0.26, candleH);
+    c.strokeStyle = '#ff8fa8'; c.lineWidth = size * 0.04;
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.moveTo(-size * 0.13, -candleH * 0.5 + i * size * 0.2 + size * 0.05);
+      c.lineTo(size * 0.13, -candleH * 0.5 + i * size * 0.2 + size * 0.08);
+      c.stroke();
+    }
+    if (lit) {
+      const fg = c.createRadialGradient(0, -candleH * 0.6, 0, 0, -candleH * 0.6, size * 0.6);
+      fg.addColorStop(0, 'rgba(255, 220, 100, 0.9)');
+      fg.addColorStop(1, 'rgba(255, 220, 100, 0)');
+      c.fillStyle = fg;
+      c.beginPath(); c.arc(0, -candleH * 0.6, size * 0.6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffb038';
+      c.beginPath();
+      c.moveTo(0, -candleH * 0.5 - size * 0.24);
+      c.bezierCurveTo(size * 0.12, -candleH * 0.5 - size * 0.1, size * 0.1, -candleH * 0.5 - size * 0.04, 0, -candleH * 0.5 - size * 0.02);
+      c.bezierCurveTo(-size * 0.1, -candleH * 0.5 - size * 0.04, -size * 0.12, -candleH * 0.5 - size * 0.1, 0, -candleH * 0.5 - size * 0.24);
+      c.fill();
+      c.fillStyle = '#fff8b0';
+      c.beginPath(); c.ellipse(0, -candleH * 0.5 - size * 0.1, size * 0.04, size * 0.08, 0, 0, Math.PI * 2); c.fill();
+    }
+  } else if (id === 'star') {
+    c.fillStyle = '#fada50';
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? size * 0.45 : size * 0.2;
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(a) * r, py = Math.sin(a) * r;
+      if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255, 255, 200, 0.6)';
+    c.beginPath(); c.arc(-size * 0.08, -size * 0.12, size * 0.06, 0, Math.PI * 2); c.fill();
+  } else if (id === 'macaron') {
+    const mg = c.createLinearGradient(0, -size * 0.4, 0, size * 0.4);
+    mg.addColorStop(0, '#f8b4d0'); mg.addColorStop(0.5, '#fdd0e0'); mg.addColorStop(1, '#f8b4d0');
+    c.fillStyle = mg;
+    c.beginPath(); c.ellipse(0, -size * 0.18, size * 0.36, size * 0.16, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(0, size * 0.18, size * 0.36, size * 0.16, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff8e8';
+    c.fillRect(-size * 0.32, -size * 0.06, size * 0.64, size * 0.12);
+    c.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    c.beginPath(); c.ellipse(-size * 0.12, -size * 0.24, size * 0.08, size * 0.04, 0, 0, Math.PI * 2); c.fill();
+  } else if (id === 'choco') {
+    const cg = c.createLinearGradient(-size * 0.35, -size * 0.35, size * 0.35, size * 0.35);
+    cg.addColorStop(0, '#6a3f24'); cg.addColorStop(1, '#3a2010');
+    c.fillStyle = cg;
+    c.fillRect(-size * 0.32, -size * 0.4, size * 0.64, size * 0.8);
+    c.fillStyle = 'rgba(255, 220, 180, 0.5)';
+    c.fillRect(-size * 0.28, -size * 0.36, size * 0.56, size * 0.1);
+    c.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    c.fillRect(-size * 0.28, -size * 0.36, size * 0.56, size * 0.04);
+  }
+}
+
+function drawDecorations(target = ctx) {
+  for (const d of decorations) {
+    target.fillStyle = 'rgba(120, 80, 100, 0.2)';
+    target.beginPath(); target.ellipse(d.x, d.y + 4, 16 * d.scale, 4, 0, 0, Math.PI * 2); target.fill();
+    target.save();
+    target.translate(d.x, d.y);
+    target.scale(d.scale, d.scale);
+    drawDecorationShape(target, d.id, 44, { lit: d.lit });
+    target.restore();
+  }
+}
+
+/* =========================================================
+   裱花 / 旋涡 / 淋面
+   ========================================================= */
+function drawPipingStroke(target, stroke) {
+  const { points, color, nozzle } = stroke;
+  if (points.length < 2) {
+    // 单个点也画
+    if (points.length === 1) drawNozzleDot(target, points[0].x, points[0].y, color, nozzle);
+    return;
+  }
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i], p2 = points[i + 1];
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const steps = Math.max(1, Math.ceil(dist / 6));
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      drawNozzleDot(target, p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t, color, nozzle);
+    }
+  }
+}
+
+function drawNozzleDot(target, x, y, color, nozzle) {
+  if (nozzle === 'round') {
+    const g = target.createRadialGradient(x - 3, y - 3, 0, x, y, 9);
+    g.addColorStop(0, shade(color, 30)); g.addColorStop(0.6, color); g.addColorStop(1, shade(color, -20));
+    target.fillStyle = g;
+    target.beginPath(); target.arc(x, y, 9, 0, Math.PI * 2); target.fill();
+    target.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    target.beginPath(); target.arc(x - 3, y - 3, 2.5, 0, Math.PI * 2); target.fill();
+  } else if (nozzle === 'star') {
+    target.fillStyle = color;
+    target.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const r = i % 2 === 0 ? 11 : 5;
+      target.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    target.closePath(); target.fill();
+    target.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    target.beginPath(); target.arc(x - 2, y - 2, 2.5, 0, Math.PI * 2); target.fill();
+  } else if (nozzle === 'petal') {
+    target.save();
+    target.translate(x, y);
+    target.fillStyle = color;
+    for (let i = 0; i < 5; i++) {
+      target.save();
+      target.rotate((i / 5) * Math.PI * 2);
+      target.beginPath();
+      target.ellipse(0, -5, 4, 7, 0, 0, Math.PI * 2);
+      target.fill();
+      target.restore();
+    }
+    target.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    target.beginPath(); target.arc(0, 0, 3, 0, Math.PI * 2); target.fill();
+    target.restore();
+  } else if (nozzle === 'leaf') {
+    target.save();
+    target.translate(x, y);
+    target.fillStyle = color;
+    target.beginPath();
+    target.ellipse(0, 0, 5, 10, 0, 0, Math.PI * 2);
+    target.fill();
+    target.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    target.lineWidth = 0.8;
+    target.beginPath(); target.moveTo(0, -7); target.lineTo(0, 7); target.stroke();
+    target.restore();
+  }
+}
+
+function drawSwirl(target, swirl) {
+  const { x, y, color, rot } = swirl;
+  target.save();
+  target.translate(x, y);
+  target.rotate(rot);
+  // 外圈花瓣
+  for (let ring = 3; ring >= 0; ring--) {
+    const r = 8 + ring * 6;
+    const petalCount = 6 + ring * 2;
+    const c = shade(color, ring * 12 - 20);
+    target.fillStyle = c;
+    for (let i = 0; i < petalCount; i++) {
+      const a = (i / petalCount) * Math.PI * 2 + ring * 0.3;
+      target.save();
+      target.rotate(a);
+      target.beginPath();
+      target.ellipse(0, -r, 5 - ring * 0.6, 8 - ring, 0, 0, Math.PI * 2);
+      target.fill();
+      target.restore();
+    }
+  }
+  // 中心
+  const g = target.createRadialGradient(0, 0, 0, 0, 0, 7);
+  g.addColorStop(0, shade(color, 30));
+  g.addColorStop(1, shade(color, -10));
+  target.fillStyle = g;
+  target.beginPath(); target.arc(0, 0, 7, 0, Math.PI * 2); target.fill();
+  target.restore();
+}
+
+function drawDrips(target) {
+  const t = performance.now() * 0.001;
+  const dripCol = (DRIP_COLORS.find(d => d.id === dripColor) || DRIP_COLORS[0]).color;
+  for (const d of drips) {
+    const wobble = Math.sin(t * 2 + d.wobble) * 1.5;
+    target.fillStyle = dripCol;
+    target.beginPath();
+    target.moveTo(d.x - d.w / 2, d.baseY - 24);
+    target.lineTo(d.x + d.w / 2, d.baseY - 24);
+    target.lineTo(d.x + d.w / 2, d.baseY + d.len - d.w / 2);
+    target.quadraticCurveTo(d.x + d.w / 2, d.baseY + d.len, d.x, d.baseY + d.len);
+    target.quadraticCurveTo(d.x - d.w / 2, d.baseY + d.len, d.x - d.w / 2, d.baseY + d.len - d.w / 2);
+    target.closePath();
+    target.fill();
+    target.beginPath();
+    target.arc(d.x + wobble, d.baseY + d.len + 2, d.w * 0.35, 0, Math.PI * 2);
+    target.fill();
+    target.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    target.beginPath();
+    target.ellipse(d.x - d.w * 0.2, d.baseY + d.len * 0.4, d.w * 0.12, d.len * 0.3, 0, 0, Math.PI * 2);
+    target.fill();
+  }
+}
+
+/* =========================================================
+   场景
+   ========================================================= */
+function drawEmptyHint() {
+  ctx.fillStyle = 'rgba(180, 140, 160, 0.6)';
+  ctx.font = '600 18px -apple-system, "PingFang SC", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('点右侧的「蛋糕胚」开始叠层', W / 2, H / 2 - 40);
+  ctx.font = '400 13px -apple-system, "PingFang SC", sans-serif';
+  ctx.fillStyle = 'rgba(190, 150, 170, 0.6)';
+  ctx.fillText('先铺蛋糕胚，再夹一层夹心，可重复叠加', W / 2, H / 2 - 10);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function drawStackingScene() {
+  const b = getCakeBounds();
+  drawPlate(b);
+  if (stack.length === 0) drawEmptyHint();
+  else drawCakeBody(b);
+}
+
+function drawMixingScene() {
+  const cx = W / 2, cy = H / 2 + 40;
+  const bowlR = 190, bowlRy = 60;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(160, 120, 140, 0.85)';
+  ctx.font = '600 16px -apple-system, "PingFang SC", sans-serif';
+  ctx.fillText('按住鼠标或手指在碗里画圈', cx, 70);
+  ctx.font = '400 12px -apple-system, "PingFang SC", sans-serif';
+  ctx.fillStyle = 'rgba(180, 150, 165, 0.75)';
+  ctx.fillText('转够 4 圈就能搅匀，进度会实时变化', cx, 92);
+
+  ctx.fillStyle = 'rgba(150, 100, 130, 0.15)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + bowlRy + 20, bowlR + 20, 26, 0, 0, Math.PI * 2); ctx.fill();
+
+  const bowlG = ctx.createLinearGradient(0, cy - bowlRy, 0, cy + bowlRy + 40);
+  bowlG.addColorStop(0, '#f0e4ea'); bowlG.addColorStop(0.4, '#ffffff'); bowlG.addColorStop(1, '#c8b0bc');
+  ctx.fillStyle = bowlG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, bowlR, bowlRy + 30, 0, 0, Math.PI);
+  ctx.lineTo(cx - bowlR, cy); ctx.lineTo(cx + bowlR, cy); ctx.closePath();
+  ctx.fill();
+
+  const rimG = ctx.createRadialGradient(cx, cy, 0, cx, cy, bowlR);
+  rimG.addColorStop(0, '#ffffff'); rimG.addColorStop(0.8, '#e8d8e0'); rimG.addColorStop(1, '#c8b0bc');
+  ctx.fillStyle = rimG;
+  ctx.beginPath(); ctx.ellipse(cx, cy, bowlR, bowlRy, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = 'rgba(120, 80, 100, 0.2)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + 4, bowlR - 12, bowlRy - 8, 0, 0, Math.PI * 2); ctx.fill();
+
+  const creamCol = getCreamRGB();
+  const innerR = bowlR - 18, innerRy = bowlRy - 12;
+
+  const creamG = ctx.createRadialGradient(cx - 40, cy - 20, 20, cx, cy + 10, innerR);
+  creamG.addColorStop(0, shade(creamCol, 20));
+  creamG.addColorStop(0.6, creamCol);
+  creamG.addColorStop(1, shade(creamCol, -12));
+  ctx.fillStyle = creamG;
+  ctx.beginPath(); ctx.ellipse(cx, cy, innerR, innerRy, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 60; i++) {
+    const t = i / 60;
+    const a = t * Math.PI * (2 + mixProgress * 5);
+    const rr = t * innerR * 0.82;
+    const px = Math.cos(a) * rr;
+    const py = Math.sin(a) * rr * (innerRy / innerR);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  if (sprinkle !== 'none') {
+    const sp = SPRINKLES.find(v => v.id === sprinkle);
+    const multiColors = ['#ff7aa0', '#ffd76b', '#7ad0ff', '#b8e0a0', '#d0b0ff'];
+    const particleCount = 45;
+    for (let i = 0; i < particleCount; i++) {
+      const baseAngle = (i / particleCount) * Math.PI * 2;
+      const baseRadius = 0.3 + rnd(i * 3.3) * 0.6;
+      const scatter = mixProgress * 0.4;
+      const angle = baseAngle + mixProgress * Math.PI * 3 + rnd(i * 7.7) * scatter;
+      const radius = (baseRadius + rnd(i * 5.5) * scatter) * innerR * 0.85;
+      const px = cx + Math.cos(angle) * radius;
+      const py = cy + Math.sin(angle) * radius * (innerRy / innerR);
+      ctx.fillStyle = sp.multi ? multiColors[i % multiColors.length] : sp.color;
+      ctx.globalAlpha = 0.9;
+      if (sprinkle === 'confetti') {
+        ctx.save(); ctx.translate(px, py); ctx.rotate(rnd(i * 2.1) * Math.PI);
+        ctx.fillRect(-3, -1.8, 6, 3.6); ctx.restore();
+      } else {
+        ctx.beginPath(); ctx.arc(px, py, 1.6 + rnd(i * 9.9) * 0.8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, bowlR, bowlRy, 0, Math.PI * 1.1, Math.PI * 1.9);
+  ctx.stroke();
+
+  drawProgressRing(W - 70, 80, 28, mixProgress);
+}
+
+function drawProgressRing(progX, progY, progR, p) {
+  ctx.strokeStyle = 'rgba(230, 210, 220, 0.75)';
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(progX, progY, progR, 0, Math.PI * 2); ctx.stroke();
+
+  ctx.strokeStyle = '#ff8fb4';
+  ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(progX, progY, progR, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  ctx.fillStyle = '#c2456f';
+  ctx.font = '700 16px -apple-system, "PingFang SC", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(p * 100) + '%', progX, progY + 1);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function drawFrostingScene() {
+  const b = getCakeBounds();
+  drawPlate(b);
+  drawCakeBody(b);
+
+  // 奶油层
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+
+  if (frostCoverage < 0.85) {
+    ctx.fillStyle = 'rgba(160, 120, 140, 0.75)';
+    ctx.font = '600 14px -apple-system, "PingFang SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('在蛋糕上按住拖动，一笔一笔把奶油抹上去', W / 2, 60);
+  }
+
+  if (isDown && pointerInside) drawSpatula(pointerX, pointerY);
+  drawProgressRing(W - 70, 80, 28, frostCoverage);
+}
+
+function drawSpatula(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.25);
+  ctx.fillStyle = '#a07858';
+  ctx.fillRect(-4, -50, 8, 46);
+  ctx.fillStyle = '#805840';
+  ctx.fillRect(-4, -50, 3, 46);
+  const bg = ctx.createLinearGradient(-18, 0, 18, 0);
+  bg.addColorStop(0, '#c8c8d0'); bg.addColorStop(0.5, '#f0f0f6'); bg.addColorStop(1, '#a8a8b4');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-18, -4); ctx.lineTo(18, -4); ctx.lineTo(15, 22); ctx.lineTo(-15, 22);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(120, 120, 130, 0.6)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.fillRect(-14, 0, 4, 18);
+  ctx.restore();
+}
+
+function drawDecoratingScene() {
+  const b = getCakeBounds();
+  drawPlate(b);
+  drawCakeBody(b);
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+
+  // 裱花
+  for (const stroke of pipingStrokes) drawPipingStroke(ctx, stroke);
+  if (currentStroke) drawPipingStroke(ctx, currentStroke);
+
+  // 旋涡
+  for (const s of swirls) drawSwirl(ctx, s);
+
+  // 淋面
+  drawDrips(ctx);
+
+  // 撒粉
+  ctx.drawImage(dustLayer, 0, 0, W, H);
+
+  // 文字
+  if (cakeText) {
+    ctx.save();
+    ctx.font = textFont;
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(cakeText, b.cx, b.topY - 30);
+    ctx.restore();
+  }
+
+  // 装饰
+  drawDecorations(ctx);
+
+  // 拖动中装饰高亮
+  if (dragDeco) {
+    ctx.strokeStyle = 'rgba(255, 143, 180, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(dragDeco.x, dragDeco.y, 30, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 提示
+  const tips = {
+    piping: '按住拖动，用花嘴画出奶油线条',
+    swirl: '点击蛋糕表面，放一朵奶油玫瑰',
+    drip: '点击蛋糕顶部边缘，淋下滴落酱',
+    top: '点击蛋糕顶部放置装饰，可以拖动 / 双击删除 / 滚轮缩放',
+    text: '在下面输入文字，会在蛋糕上显示',
+    dust: '在蛋糕上拖动，撒下粉末',
+  };
+  ctx.fillStyle = 'rgba(160, 120, 140, 0.8)';
+  ctx.font = '600 14px -apple-system, "PingFang SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(tips[decoMode] || '', W / 2, 60);
+}
+
+function drawCutScene() {
+  const b = getCakeBounds();
+  drawPlate(b);
+  drawCakeBody(b);
+
+  const pad = 16;
+
+  // 切面奶油边缘
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(b.left - pad, b.topY - pad, pad, b.baseY - b.topY + pad * 2);
+  ctx.clip();
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(b.right, b.topY - pad, pad, b.baseY - b.topY + pad * 2);
+  ctx.clip();
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(b.left - pad, b.topY - pad, b.cakeW + pad * 2, pad);
+  ctx.clip();
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(b.left - pad, b.baseY, b.cakeW + pad * 2, pad);
+  ctx.clip();
+  ctx.drawImage(creamLayer, 0, 0, W, H);
+  ctx.restore();
+
+  // 撒粉
+  ctx.drawImage(dustLayer, 0, 0, W, H);
+
+  // 裱花靠近边缘的
+  for (const stroke of pipingStrokes) {
+    for (const p of stroke.points) {
+      if (p.x < b.left + 25 || p.x > b.right - 25) {
+        drawNozzleDot(ctx, p.x, p.y, stroke.color, stroke.nozzle);
+      }
+    }
+  }
+
+  // 旋涡靠近边缘
+  for (const s of swirls) {
+    if (s.x < b.left + 25 || s.x > b.right - 25) drawSwirl(ctx, s);
+  }
+
+  // 淋面边缘
+  const dripCol = (DRIP_COLORS.find(d => d.id === dripColor) || DRIP_COLORS[0]).color;
+  ctx.fillStyle = dripCol;
+  for (const d of drips) {
+    if (d.x > b.left - pad - 5 && d.x < b.left + 10) {
+      ctx.fillRect(d.x - d.w / 2, d.baseY - 10, d.w, 10);
+    } else if (d.x > b.right - 10 && d.x < b.right + pad + 5) {
+      ctx.fillRect(d.x - d.w / 2, d.baseY - 10, d.w, 10);
+    }
+  }
+
+  // 切刀动画
+  if (cutProgress < 1) {
+    ctx.strokeStyle = 'rgba(120, 80, 100, ' + (0.5 + Math.sin(performance.now() * 0.01) * 0.3) + ')';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(b.cx, b.topY - 30);
+    ctx.lineTo(b.cx, b.baseY + 20);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const knifeY = b.topY - 60 + cutProgress * (b.baseY - b.topY + 80);
+    ctx.save();
+    ctx.translate(b.cx + 50, knifeY);
+    ctx.rotate(-0.3);
+    const kg = ctx.createLinearGradient(0, -50, 0, 0);
+    kg.addColorStop(0, '#e8e8f0'); kg.addColorStop(0.5, '#c0c0cc'); kg.addColorStop(1, '#909098');
+    ctx.fillStyle = kg;
+    ctx.beginPath();
+    ctx.moveTo(-4, -50); ctx.lineTo(4, -50); ctx.lineTo(6, 0); ctx.lineTo(-6, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a3828';
+    ctx.fillRect(-8, -100, 16, 50);
+    ctx.fillStyle = '#3a2018';
+    ctx.fillRect(-8, -100, 6, 50);
+    ctx.restore();
+  }
+
+  // 顶部装饰保留
+  for (const d of decorations) {
+    ctx.save();
+    ctx.translate(d.x + (d.x > b.cx ? 4 : -4), d.y);
+    ctx.globalAlpha = 0.9;
+    ctx.scale(d.scale, d.scale);
+    drawDecorationShape(ctx, d.id, 44, { lit: d.lit });
+    ctx.restore();
+  }
+
+  ctx.fillStyle = 'rgba(160, 120, 140, 0.85)';
+  ctx.font = '600 16px -apple-system, "PingFang SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('切面效果', W / 2, 60);
+}
+
+/* ---------- 主绘制 ---------- */
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  if (step === 0) drawStackingScene();
+  else if (step === 1) drawMixingScene();
+  else if (step === 2) drawFrostingScene();
+  else if (step === 3) drawDecoratingScene();
+  else if (step === 4) drawCutScene();
+}
+
+/* =========================================================
+   面板
+   ========================================================= */
+function renderSteps() {
+  const names = ['1 叠层', '2 搅拌', '3 抹面', '4 装饰', '5 切开'];
+  stepsEl.innerHTML = names.map((n, i) => {
+    let cls = 'step';
+    if (i === step) cls += ' active';
+    else if (i < step) cls += ' done';
+    return `<span class="${cls}">${n}</span>`;
+  }).join('');
+}
+
+function chip(label, attrs, isOn) {
+  return `<button class="chip${isOn ? ' on' : ''}" ${attrs}>${label}</button>`;
+}
+
+function renderPanel() {
+  renderSteps();
+
+  if (step === 0) {
+    const spongeChips = SPONGES.map(s =>
+      chip(`<span class="dot" style="background:${s.c1}"></span>${s.name}`, `data-add-sponge="${s.id}"`, false)
+    ).join('');
+    const fillingChips = FILLINGS.map(f =>
+      chip(`<span class="dot" style="background:${f.c1}"></span>${f.name}`, `data-add-filling="${f.id}"`, false)
+    ).join('');
+    const bgChips = BACKGROUNDS.map(b =>
+      chip(b.name, `data-bg="${b.id}"`, bgTheme === b.id)
+    ).join('');
+
+    panel.innerHTML = `
+      <div class="card">
+        <h3>🧱 蛋糕胚</h3>
+        <div class="hint">点一下就往蛋糕上叠一层，最多 5 层</div>
+        <div class="chips">${spongeChips}</div>
+      </div>
+      <div class="card">
+        <h3>🍓 夹心小料</h3>
+        <div class="hint">夹在两层蛋糕胚之间</div>
+        <div class="chips">${fillingChips}</div>
+      </div>
+      <div class="card">
+        <h3>🎨 背景氛围</h3>
+        <div class="chips">${bgChips}</div>
+      </div>
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="undoBtn">↶ 撤销</button>
+          <button class="btn" id="clearBtn">🗑 清空</button>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="nextBtn">下一步 · 搅拌奶油 →</button>
+        </div>
+      </div>
+    `;
+  }
+  else if (step === 1) {
+    const colorSwatches = CREAM_COLORS.map(c =>
+      `<button class="swatch${creamColor === c.id ? ' on' : ''}" data-color="${c.id}" style="background:${c.color}" title="${c.name}"></button>`
+    ).join('');
+    const textureChips = CREAM_TEXTURES.map(t => chip(t.name, `data-texture="${t.id}"`, creamTexture === t.id)).join('');
+    const sprinkleChips = SPRINKLES.map(s => chip(s.name, `data-sprinkle="${s.id}"`, sprinkle === s.id)).join('');
+    const pct = Math.round(mixProgress * 100);
+
+    panel.innerHTML = `
+      <div class="card">
+        <h3>🎨 奶油颜色</h3>
+        <div class="swatches">${colorSwatches}</div>
+      </div>
+      <div class="card">
+        <h3>🧈 奶油质地</h3>
+        <div class="chips">${textureChips}</div>
+      </div>
+      <div class="card">
+        <h3>✨ 加入颗粒</h3>
+        <div class="chips">${sprinkleChips}</div>
+      </div>
+      <div class="card">
+        <h3>🥄 亲手搅拌</h3>
+        <div class="hint">在左侧奶油碗里按住鼠标或手指画圈，转够 4 圈就搅匀了</div>
+        <div class="bar"><i id="mixBar" style="width:${pct}%"></i></div>
+        <div style="font-size:12px;color:#a68d84;text-align:center" id="mixText">搅拌进度 ${pct}%</div>
+      </div>
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="prevBtn">← 返回</button>
+          <button class="btn primary" id="nextBtn" ${mixProgress < 0.9 ? 'disabled' : ''}>下一步 · 抹面 →</button>
+        </div>
+      </div>
+    `;
+  }
+  else if (step === 2) {
+    const pct = Math.round(frostCoverage * 100);
+    const c = CREAM_COLORS.find(v => v.id === creamColor);
+    const t = CREAM_TEXTURES.find(v => v.id === creamTexture);
+
+    panel.innerHTML = `
+      <div class="card">
+        <h3>🔪 亲手抹面</h3>
+        <div class="hint">
+          在左侧蛋糕上按住鼠标或手指反复拖动，一笔一笔把奶油抹上去。<br>
+          靠近边缘会自然形成滴落。<br>
+          当前奶油：<b style="color:${shade(c.color, -60)}">${c.name}</b> · ${t.name}
+        </div>
+        <div class="bar"><i id="frostBar" style="width:${pct}%"></i></div>
+        <div style="font-size:12px;color:#a68d84;text-align:center" id="frostText">覆盖度 ${pct}%</div>
+      </div>
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="prevBtn">← 返回</button>
+          <button class="btn primary" id="nextBtn" ${frostCoverage < 0.7 ? 'disabled' : ''}>下一步 · 装饰 →</button>
+        </div>
+      </div>
+    `;
+  }
+  else if (step === 3) {
+    const modeChips = [
+      chip('🍥 裱花', `data-mode="piping"`, decoMode === 'piping'),
+      chip('🌸 玫瑰', `data-mode="swirl"`, decoMode === 'swirl'),
+      chip('🍫 淋面', `data-mode="drip"`, decoMode === 'drip'),
+      chip('🍓 装饰', `data-mode="top"`, decoMode === 'top'),
+      chip('✏️ 文字', `data-mode="text"`, decoMode === 'text'),
+      chip('✨ 撒粉', `data-mode="dust"`, decoMode === 'dust'),
+    ].join('');
+
+    let modeContent = '';
+
+    if (decoMode === 'piping') {
+      const swatches = CREAM_COLORS.map(c =>
+        `<button class="swatch${pipingColor === c.color ? ' on' : ''}" data-pipe-color="${c.color}" style="background:${c.color}"></button>`
+      ).join('');
+      const nozzleChips = NOZZLES.map(n => chip(n.name, `data-nozzle="${n.id}"`, pipingNozzle === n.id)).join('');
+      modeContent = `
+        <div class="card">
+          <h3>🎨 裱花颜色</h3>
+          <div class="swatches">${swatches}</div>
+        </div>
+        <div class="card">
+          <h3>🌼 花嘴形状</h3>
+          <div class="chips">${nozzleChips}</div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <button class="btn" id="clearPipingBtn">🗑 清空裱花</button>
+          </div>
+        </div>
+      `;
+    } else if (decoMode === 'swirl') {
+      const swatches = CREAM_COLORS.map(c =>
+        `<button class="swatch${pipingColor === c.color ? ' on' : ''}" data-pipe-color="${c.color}" style="background:${c.color}"></button>`
+      ).join('');
+      modeContent = `
+        <div class="card">
+          <h3>🌸 玫瑰颜色</h3>
+          <div class="swatches">${swatches}</div>
+        </div>
+        <div class="card">
+          <h3>已放 ${swirls.length} 朵</h3>
+          <div class="row">
+            <button class="btn" id="clearSwirlBtn">🗑 清空玫瑰</button>
+          </div>
+        </div>
+      `;
+    } else if (decoMode === 'drip') {
+      const dripChips = DRIP_COLORS.map(d =>
+        chip(`<span class="dot" style="background:${d.color}"></span>${d.name}`, `data-drip="${d.id}"`, dripColor === d.id)
+      ).join('');
+      modeContent = `
+        <div class="card">
+          <h3>🍫 淋面颜色</h3>
+          <div class="chips">${dripChips}</div>
+        </div>
+        <div class="card">
+          <h3>已淋 ${drips.length} 条</h3>
+          <div class="row">
+            <button class="btn" id="clearDripBtn">🗑 清空淋面</button>
+          </div>
+        </div>
+      `;
+    } else if (decoMode === 'top') {
+      const decoChips = DECORATIONS.map(d => chip(d.name, `data-deco="${d.id}"`, selectedDeco === d.id)).join('');
+      modeContent = `
+        <div class="card">
+          <h3>🍒 装饰物</h3>
+          <div class="hint">先选一个，再点击蛋糕顶部放置</div>
+          <div class="chips">${decoChips}</div>
+        </div>
+        <div class="card">
+          <h3>已放置 ${decorations.length} 个</h3>
+          <div class="hint">拖动可移动，双击删除，滚轮缩放（或双指捏合）</div>
+          <div class="row">
+            <button class="btn" id="clearDecoBtn">🗑 清空装饰</button>
+          </div>
+        </div>
+      `;
+    } else if (decoMode === 'text') {
+      modeContent = `
+        <div class="card">
+          <h3>✏️ 蛋糕文字</h3>
+          <input class="text-input" id="textInput" placeholder="输入文字，例如 Happy Birthday" value="${cakeText.replace(/"/g, '&quot;')}">
+          <div class="row">
+            <button class="btn" id="applyTextBtn">应用文字</button>
+            <button class="btn" id="clearTextBtn">清除</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🎨 文字颜色</h3>
+          <div class="swatches">
+            ${['#c2456f', '#a87858', '#7aa050', '#a8c4e8', '#c8b0e8', '#e05568', '#5a3820', '#ffffff'].map(c =>
+              `<button class="swatch${textColor === c ? ' on' : ''}" data-text-color="${c}" style="background:${c}"></button>`
+            ).join('')}
+          </div>
+        </div>
+      `;
+    } else if (decoMode === 'dust') {
+      const dustChips = DUSTS.map(d =>
+        chip(d.color ? `<span class="dot" style="background:${d.color}"></span>${d.name}` : d.name, `data-dust="${d.id}"`, dustColor === d.id)
+      ).join('');
+      modeContent = `
+        <div class="card">
+          <h3>✨ 粉末选择</h3>
+          <div class="chips">${dustChips}</div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <button class="btn" id="clearDustBtn">🗑 清空粉末</button>
+          </div>
+        </div>
+      `;
+    }
+
+    panel.innerHTML = `
+      <div class="card">
+        <h3>✋ 工具</h3>
+        <div class="mode">${modeChips}</div>
+      </div>
+      ${modeContent}
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="prevBtn">← 返回</button>
+          <button class="btn primary" id="nextBtn">切开看看 →</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="exportBtn">📷 保存图片</button>
+        </div>
+      </div>
+    `;
+  }
+  else if (step === 4) {
+    panel.innerHTML = `
+      <div class="card" style="text-align:center;padding:26px 16px;background:linear-gradient(135deg,#fff0f6,#ffe8dc);border-radius:20px;">
+        <h2 style="font-size:28px;background:linear-gradient(90deg,#ff7aa8,#ffb26b);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:10px;font-weight:800;">🎉 完成啦</h2>
+        <p style="font-size:13px;color:#a68d84;">你的蛋糕切面已经做好，<br>再改改还是重新做一个？</p>
+      </div>
+      <div class="card">
+        <div class="row">
+          <button class="btn" id="backBtn">← 再改改</button>
+          <button class="btn primary" id="restartBtn">🍰 重新做一个</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="exportBtn2">📷 保存图片</button>
+        </div>
+      </div>
+    `;
+  }
+
+  bindPanelEvents();
+}
+
+function syncFrostUI() {
+  const bar = panel.querySelector('#frostBar');
+  if (bar) bar.style.width = Math.round(frostCoverage * 100) + '%';
+  const txt = panel.querySelector('#frostText');
+  if (txt) txt.textContent = '覆盖度 ' + Math.round(frostCoverage * 100) + '%';
+  const nextBtn = panel.querySelector('#nextBtn');
+  if (nextBtn && step === 2 && frostCoverage >= 0.7) nextBtn.disabled = false;
+}
+
+function bindPanelEvents() {
+  panel.querySelectorAll('[data-add-sponge]').forEach(btn => {
+    btn.onclick = () => {
+      if (stack.filter(i => i.type === 'sponge').length >= 5) return;
+      stack.push({ type: 'sponge', id: btn.dataset.addSponge });
+      renderPanel();
+    };
+  });
+
+  panel.querySelectorAll('[data-add-filling]').forEach(btn => {
+    btn.onclick = () => {
+      if (stack.length === 0) return;
+      if (stack[stack.length - 1].type === 'filling') {
+        stack[stack.length - 1].id = btn.dataset.addFilling;
+      } else {
+        stack.push({ type: 'filling', id: btn.dataset.addFilling });
+      }
+      renderPanel();
+    };
+  });
+
+  panel.querySelectorAll('[data-bg]').forEach(btn => {
+    btn.onclick = () => { bgTheme = btn.dataset.bg; renderPanel(); };
+  });
+
+  const undoBtn = panel.querySelector('#undoBtn');
+  if (undoBtn) undoBtn.onclick = () => { stack.pop(); renderPanel(); };
+
+  const clearBtn = panel.querySelector('#clearBtn');
+  if (clearBtn) clearBtn.onclick = () => { stack = []; renderPanel(); };
+
+  panel.querySelectorAll('[data-color]').forEach(btn => {
+    btn.onclick = () => { creamColor = btn.dataset.color; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-texture]').forEach(btn => {
+    btn.onclick = () => { creamTexture = btn.dataset.texture; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-sprinkle]').forEach(btn => {
+    btn.onclick = () => {
+      sprinkle = btn.dataset.sprinkle;
+      mixProgress = 0; mixTotalAngle = 0; lastAngle = null;
+      renderPanel();
+    };
+  });
+
+  panel.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.onclick = () => { decoMode = btn.dataset.mode; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-pipe-color]').forEach(btn => {
+    btn.onclick = () => { pipingColor = btn.dataset.pipeColor; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-nozzle]').forEach(btn => {
+    btn.onclick = () => { pipingNozzle = btn.dataset.nozzle; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-drip]').forEach(btn => {
+    btn.onclick = () => { dripColor = btn.dataset.drip; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-deco]').forEach(btn => {
+    btn.onclick = () => { selectedDeco = btn.dataset.deco; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-dust]').forEach(btn => {
+    btn.onclick = () => { dustColor = btn.dataset.dust; renderPanel(); };
+  });
+
+  panel.querySelectorAll('[data-text-color]').forEach(btn => {
+    btn.onclick = () => { textColor = btn.dataset.textColor; renderPanel(); };
+  });
+
+  const clearPipingBtn = panel.querySelector('#clearPipingBtn');
+  if (clearPipingBtn) clearPipingBtn.onclick = () => { pipingStrokes = []; renderPanel(); };
+
+  const clearSwirlBtn = panel.querySelector('#clearSwirlBtn');
+  if (clearSwirlBtn) clearSwirlBtn.onclick = () => { swirls = []; renderPanel(); };
+
+  const clearDripBtn = panel.querySelector('#clearDripBtn');
+  if (clearDripBtn) clearDripBtn.onclick = () => { drips = []; renderPanel(); };
+
+  const clearDecoBtn = panel.querySelector('#clearDecoBtn');
+  if (clearDecoBtn) clearDecoBtn.onclick = () => { decorations = []; renderPanel(); };
+
+  const clearDustBtn = panel.querySelector('#clearDustBtn');
+  if (clearDustBtn) clearDustBtn.onclick = () => { dustCtx.clearRect(0, 0, W, H); renderPanel(); };
+
+  const clearTextBtn = panel.querySelector('#clearTextBtn');
+  if (clearTextBtn) clearTextBtn.onclick = () => { cakeText = ''; renderPanel(); };
+
+  const applyTextBtn = panel.querySelector('#applyTextBtn');
+  if (applyTextBtn) {
+    applyTextBtn.onclick = () => {
+      const input = panel.querySelector('#textInput');
+      if (input) cakeText = input.value.slice(0, 30);
+      renderPanel();
+    };
+  }
+
+  const textInput = panel.querySelector('#textInput');
+  if (textInput) {
+    textInput.oninput = () => { cakeText = textInput.value.slice(0, 30); };
+  }
+
+  const nextBtn = panel.querySelector('#nextBtn');
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      if (step === 0 && stack.length === 0) { alert('先叠一层蛋糕胚吧～'); return; }
+      goStep(step + 1);
+    };
+  }
+
+  const prevBtn = panel.querySelector('#prevBtn');
+  if (prevBtn) prevBtn.onclick = () => goStep(step - 1);
+
+  const backBtn = panel.querySelector('#backBtn');
+  if (backBtn) backBtn.onclick = () => { isCut = false; cutProgress = 0; goStep(3); };
+
+  const restartBtn = panel.querySelector('#restartBtn');
+  if (restartBtn) restartBtn.onclick = () => resetAll();
+
+  const exportBtn = panel.querySelector('#exportBtn');
+  if (exportBtn) exportBtn.onclick = exportPNG;
+  const exportBtn2 = panel.querySelector('#exportBtn2');
+  if (exportBtn2) exportBtn2.onclick = exportPNG;
+}
+
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = '我的蛋糕.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function goStep(n) {
+  step = Math.max(0, Math.min(4, n));
+  isCut = step === 4;
+  if (step === 4) cutProgress = 0;
+  lastAngle = null;
+  lastPaint = null;
+  renderPanel();
+}
+
+function resetAll() {
+  step = 0;
+  stack = [];
+  creamColor = 'pink';
+  creamTexture = 'fresh';
+  sprinkle = 'none';
+  mixProgress = 0; mixTotalAngle = 0; lastAngle = null;
+  frostCoverage = 0;
+  frostGrid = new Array(FROST_GRID.w * FROST_GRID.h).fill(0);
+  frostTotal = 0;
+  creamCtx.clearRect(0, 0, W, H);
+  dustCtx.clearRect(0, 0, W, H);
+  pipingStrokes = []; currentStroke = null; swirls = []; drips = [];
+  decorations = [];
+  pipingColor = '#f8b4c8';
+  pipingNozzle = 'star';
+  dripColor = 'choco';
+  dustColor = 'none';
+  cakeText = '';
+  textColor = '#c2456f';
+  decoMode = 'piping';
+  selectedDeco = 'strawberry';
+  isCut = false;
+  cutProgress = 0;
+  renderPanel();
+}
+
+/* =========================================================
+   画布交互
+   ========================================================= */
+let isDown = false;
+let pointerX = 0, pointerY = 0;
+let pointerInside = false;
+
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  isDown = true;
+  const p = getPos(e);
+  pointerX = p.x; pointerY = p.y;
+
+  if (step === 1) {
+    const cx = W / 2, cy = H / 2 + 40;
+    const dx = p.x - cx, dy = (p.y - cy) / 0.32;
+    if (dx * dx + dy * dy < 200 * 200) lastAngle = Math.atan2(dy, dx);
+  } else if (step === 2) {
+    lastPaint = { x: p.x, y: p.y };
+    paintFrostAt(p.x, p.y);
+  } else if (step === 3) {
+    // 先检查是否点中装饰（拖动）
+    const hit = hitTestDeco(p.x, p.y);
+    if (hit && (decoMode === 'top' || decoMode === 'piping' || decoMode === 'swirl' || decoMode === 'drip')) {
+      dragDeco = hit;
+      dragOffset = { x: p.x - hit.x, y: p.y - hit.y };
+      return;
+    }
+
+    if (decoMode === 'piping') {
+      currentStroke = { points: [{ x: p.x, y: p.y }], color: pipingColor, nozzle: pipingNozzle };
+    } else if (decoMode === 'swirl') {
+      addSwirl(p.x, p.y);
+    } else if (decoMode === 'drip') {
+      addDripAt(p.x, p.y);
+    } else if (decoMode === 'top') {
+      placeDeco(p.x, p.y);
+    } else if (decoMode === 'dust') {
+      sprinkleDust(p.x, p.y);
+    }
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  const p = getPos(e);
+  pointerX = p.x; pointerY = p.y;
+
+  if (dragDeco) {
+    dragDeco.x = p.x - dragOffset.x;
+    dragDeco.y = p.y - dragOffset.y;
+    return;
+  }
+
+  // 装饰光标
+  if (step === 3) {
+    hoverDeco = hitTestDeco(p.x, p.y);
+    canvas.style.cursor = hoverDeco ? 'move' : 'crosshair';
+  } else {
+    canvas.style.cursor = 'crosshair';
+  }
+
+  if (!isDown) return;
+
+  if (step === 1) {
+    const cx = W / 2, cy = H / 2 + 40;
+    const dx = p.x - cx, dy = (p.y - cy) / 0.32;
+    if (dx * dx + dy * dy < 200 * 200) {
+      const a = Math.atan2(dy, dx);
+      if (lastAngle !== null) {
+        let diff = a - lastAngle;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        mixTotalAngle += Math.abs(diff);
+        mixProgress = Math.min(1, mixTotalAngle / MIX_TARGET);
+        const bar = panel.querySelector('#mixBar');
+        if (bar) bar.style.width = Math.round(mixProgress * 100) + '%';
+        const txt = panel.querySelector('#mixText');
+        if (txt) txt.textContent = '搅拌进度 ' + Math.round(mixProgress * 100) + '%';
+        const nextBtn = panel.querySelector('#nextBtn');
+        if (nextBtn && mixProgress >= 0.9) nextBtn.disabled = false;
+      }
+      lastAngle = a;
+    } else {
+      lastAngle = null;
+    }
+  } else if (step === 2) {
+    if (lastPaint) paintFrostLine(lastPaint.x, lastPaint.y, p.x, p.y);
+    else paintFrostAt(p.x, p.y);
+    lastPaint = { x: p.x, y: p.y };
+  } else if (step === 3) {
+    if (decoMode === 'piping' && currentStroke) {
+      currentStroke.points.push({ x: p.x, y: p.y });
+    } else if (decoMode === 'dust' && isDown) {
+      sprinkleDust(p.x, p.y);
+    }
+  }
+});
+
+canvas.addEventListener('pointerup', e => {
+  isDown = false;
+  lastPaint = null;
+  if (step === 1) lastAngle = null;
+  if (step === 3 && currentStroke) {
+    if (currentStroke.points.length > 0) pipingStrokes.push(currentStroke);
+    currentStroke = null;
+  }
+  if (dragDeco) {
+    dragDeco = null;
+  }
+});
+canvas.addEventListener('pointercancel', () => {
+  isDown = false;
+  lastPaint = null;
+  lastAngle = null;
+  if (currentStroke) {
+    pipingStrokes.push(currentStroke);
+    currentStroke = null;
+  }
+  dragDeco = null;
+});
+
+canvas.addEventListener('pointerenter', () => { pointerInside = true; });
+canvas.addEventListener('pointerleave', () => { pointerInside = false; });
+
+// 双击删除装饰
+canvas.addEventListener('dblclick', e => {
+  if (step !== 3) return;
+  const p = getPos(e);
+  const hit = hitTestDeco(p.x, p.y);
+  if (hit) {
+    const idx = decorations.indexOf(hit);
+    if (idx >= 0) decorations.splice(idx, 1);
+    renderPanel();
+  }
+});
+
+// 滚轮缩放装饰
+canvas.addEventListener('wheel', e => {
+  if (step !== 3) return;
+  const p = getPos(e);
+  const hit = hitTestDeco(p.x, p.y);
+  if (hit) {
+    e.preventDefault();
+    hit.scale = Math.max(0.5, Math.min(2.5, hit.scale * (e.deltaY > 0 ? 0.9 : 1.1)));
+  }
+}, { passive: false });
+
+// 蜡烛点击点亮/熄灭
+canvas.addEventListener('click', e => {
+  if (step !== 3) return;
+  const p = getPos(e);
+  const hit = hitTestDeco(p.x, p.y);
+  if (hit && hit.id === 'candle') {
+    hit.lit = !hit.lit;
+  }
+});
+
+function hitTestDeco(x, y) {
+  for (let i = decorations.length - 1; i >= 0; i--) {
+    const d = decorations[i];
+    const r = 26 * d.scale;
+    if ((d.x - x) ** 2 + (d.y - y) ** 2 < r * r) return d;
+  }
+  return null;
+}
+
+function placeDeco(x, y) {
+  if (stack.length === 0) return;
+  const b = getCakeBounds();
+  if (x < b.left + 15 || x > b.right - 15) return;
+  if (y < b.topY - 60 || y > b.topY + 30) return;
+  if (decorations.length >= 15) return;
+  decorations.push({
+    x, y: b.topY - 10,
+    id: selectedDeco,
+    scale: 1,
+    lit: selectedDeco === 'candle',
+  });
+  renderPanel();
+}
+
+function addSwirl(x, y) {
+  if (stack.length === 0) return;
+  const b = getCakeBounds();
+  if (x < b.left - 10 || x > b.right + 10) return;
+  if (y < b.topY - 40 || y > b.topY + 40) return;
+  if (swirls.length >= 30) return;
+  swirls.push({ x, y, color: pipingColor, rot: Math.random() * Math.PI * 2 });
+}
+
+function addDripAt(x, y) {
+  const b = getCakeBounds();
+  const topY = b.topY - 16;
+  if (y < topY - 40 || y > topY + 60) return;
+  if (x < b.left - 16 || x > b.right + 16) return;
+  if (drips.length >= 30) return;
+  drips.push({
+    x,
+    baseY: topY + 6,
+    len: 30 + Math.random() * 90,
+    w: 12 + Math.random() * 10,
+    wobble: Math.random() * Math.PI * 2,
+  });
+}
+
+/* =========================================================
+   主循环 & 初始化
+   ========================================================= */
+function loop() {
+  if (step === 4 && cutProgress < 1) cutProgress = Math.min(1, cutProgress + 0.012);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+setupCanvas();
+fitCanvas();
+renderPanel();
+requestAnimationFrame(loop);
+
+window.addEventListener('resize', () => { setupCanvas(); fitCanvas(); });
+if (window.ResizeObserver) {
+  new ResizeObserver(() => { setupCanvas(); fitCanvas(); }).observe(stage);
+}
+</script>
+</body>
+</html>
